@@ -5,3 +5,7 @@ class Appointment:
         self.issueDescription = issueDescription
         self.bookedSlot = bookedSlot
         self.statusID = statusID
+        
+    def createAppointment(self, bicycleName):
+        self.bicycle = bicycleName
+        return True
