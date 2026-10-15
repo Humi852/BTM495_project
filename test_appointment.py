@@ -13,3 +13,9 @@ print("Bicycle:", appointment1.bicycle)
 print("Repair:", appointment1.issueDescription)
 print("Date and Time:", appointment1.bookedSlot)
 print("Status ID:", appointment1.statusID)
+
+print("\nTesting createAppointment method:")
+
+result = appointment1.createAppointment("Road Bike")
+print("Method result:", result)
+print("Updated bicycle:", appointment1.bicycle)
