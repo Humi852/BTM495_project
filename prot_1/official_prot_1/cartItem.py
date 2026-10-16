@@ -1,0 +1,2 @@
+class cartItem:
+    quantity: int

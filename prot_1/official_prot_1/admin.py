@@ -1,0 +1,4 @@
+
+class admin:
+    adminId: int
+
