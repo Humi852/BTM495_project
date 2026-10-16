@@ -1,3 +1,5 @@
+#CONNECTOR between DATABASE and BACKEND which is prot_1 
+
 from models.user import User
 from database.db import initialize_database
 
