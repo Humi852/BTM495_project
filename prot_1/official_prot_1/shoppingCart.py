@@ -1,0 +1,2 @@
+class shoppingCart:
+    cartId: int
