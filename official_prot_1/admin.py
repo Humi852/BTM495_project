@@ -1,2 +1,0 @@
-class admin:
-    adminId: int
