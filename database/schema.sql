@@ -45,3 +45,17 @@ CREATE TABLE orders (
     totalAmount REAL,
     FOREIGN KEY (user_id) REFERENCES user(user_id)
  ); 
+
+   --6. Payment Table
+CREATE TABLE payment (
+    payment_id INTEGER PRIMARY KEY,
+    order_id INTEGER,
+    paymentDateTime DATETIME,
+    amount REAL,
+    paymentMethod TEXT,
+    paidstatus BOOLEAN,
+    details TEXT,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+ ); 
+    FOREIGN KEY (user_id) REFERENCES user(user_id)
+ ); 

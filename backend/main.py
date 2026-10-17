@@ -4,7 +4,7 @@ from decimal import Decimal
 
 """
 
-from models.user import User
+from backend.models.user import user as User
 from database.db import initialize_database
 
 if __name__ == "__main__":
