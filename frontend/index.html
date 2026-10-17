@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>LPVR Local Integration Test</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">LOCAL DEVELOPMENT</p>
+          <h1>Integration test</h1>
+          <p class="subtitle">Check that the local web page, API, and SQLite database are connected.</p>
+        </div>
+        <span id="overall-status" class="status status-pending">Checking…</span>
+      </header>
+
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <h2>Database connection</h2>
+            <p id="database-name" class="muted">Waiting for API response</p>
+          </div>
+          <button id="refresh-button" type="button">Run test again</button>
+        </div>
+        <p id="error-message" class="error" role="alert" hidden></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">SQLite table</th>
+                <th scope="col">Rows</th>
+                <th scope="col">Result</th>
+              </tr>
+            </thead>
+            <tbody id="table-results">
+              <tr><td colspan="3" class="muted">Loading database status…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p class="footnote">This smoke test only reads the database; it does not create, update, or delete records.</p>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
