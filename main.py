@@ -1,6 +1,6 @@
-#CONNECTOR between DATABASE and BACKEND which is prot_1 
+# Connect the database and backend.
 
-from models.user import User
+from backend.models.user import user as User
 from database.db import initialize_database
 
 if __name__ == "__main__":
