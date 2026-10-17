@@ -1,55 +1,92 @@
-# LPVR Python prototype
+# BTM 495 Project
 
-Generated from the Visual Paradigm model. Contains Python class scaffolds, their attributes, UML method placeholders, and inheritance links.
+## Project overview
 
-## Run the Python prototype
-```bash
+This project is a website for a bike shop. It is designed to help customers
+and administrators manage user profiles, events, appointments, orders,
+payments, and inventory. Administrators manage the shop's information and
+operations, while customers use the website to access shop services.
+
+The team developed the code in Python, using its UML class design as a guide
+for classes, attributes, and methods. The project was not generated from a
+Visual Paradigm model.
+
+SQLite provides the database. Its tables are defined in
+`database/schema.sql`, and `database/db.py` initializes the database file at
+`database/lpvr.db`.
+
+## Project structure
+
+- `backend/models/` contains Python classes for the project concepts, such as
+  users, orders, items, and payments.
+- `backend/services/` contains service logic, including the inventory and
+  payment classes.
+- `backend/apis/local_test.py` serves the local website and its API.
+- `database/schema.sql` defines the SQLite tables.
+- `database/db.py` initializes the database.
+- `frontend/` contains the website HTML, CSS, and JavaScript.
+- `tests/` contains the website tests and `tests/unitTests/` contains the
+  payment unit tests and manual cash-payment demo.
+- `main.py` runs the command-line payment example.
+- `testInLocalWebPage.py` starts the local website.
+
+## Run the Python payment example
+
+From the project root, run:
+
+```powershell
 python main.py
 ```
 
-## Run the local web integration test
+Follow the prompts to choose credit-card payment or cash payment. This is a
+mock payment flow; it does not contact a bank.
 
-The local test page checks that the page, its API, and the SQLite database can
-communicate. It uses Python's standard library; no package installation is
-needed.
+## Run the local website
 
-1. From the project root, run:
+From the project root, run:
 
-   ```bash
-   python localteststart.py
-   ```
-
-2. The launcher starts a server bound to this computer and opens the page in
-   Google Chrome when Chrome is detected. If it does not open automatically,
-   enter this URL in Chrome:
-
-   ```text
-   http://localhost:8765/
-   ```
-
-3. The page reports database connectivity and the number of rows in each
-   application table. Select **Run test again** to repeat the check.
-4. Press `Ctrl+C` in the terminal to stop the local server.
-
-The page calls `GET /api/status`. This is a read-only smoke test: it does not
-initialize the database or create, update, or delete records. To use another
-port, run `python localteststart.py --port 8766`; the URL will use that port.
-
-Run the API tests separately with:
-
-```bash
-python -m unittest discover -s tests
+```powershell
+python testInLocalWebPage.py
 ```
 
-## Important
-- Method bodies intentionally raise `NotImplementedError`.
-- The SQLite schema is a starter example, **not** a complete model-to-table conversion.
-- UML association/composition multiplicities are not implemented as ORM relations.
-- Attribute types and names may require refinement; passwords should be stored as secure hashes, not plain text.
-- Classes such as Database and service classes were kept because they occur in the source UML, but may not represent persistent database tables.
+The launcher starts a local server and attempts to open the site in your
+default browser. If it does not open automatically, visit:
 
-## Inheritance extracted
-- Administrator inherits User
-- Customer inherits User
-- Part inherits Item
-- Bicycle inherits Item
+```text
+http://localhost:8765/
+```
+
+The page shows the SQLite table names, orders, and existing payment history.
+Select **Make a payment** to open the payment form. If there is no unpaid
+order, the website creates a $50 sample order in SQLite so that you can try
+the form. The sample order remains in the database.
+
+Only the card number `4242424242424242` is approved by the mock gateway. Use a
+valid expiration date in `MM/YY` format and a three-digit security code. Other
+card numbers are declined. When a payment is declined, the form explains the
+result and the order remains unpaid.
+
+Payment attempts and card details are not stored in the database. No external
+bank or payment service is contacted. Press `Ctrl+C` in the server terminal to
+stop the website. To use a different port, for example, run:
+
+```powershell
+python testInLocalWebPage.py --port 8766
+```
+
+## Run the tests
+
+Run the local website tests:
+
+```powershell
+python -m unittest discover -s tests -p "test_localDryrunWebsite.py"
+```
+
+Run the payment unit tests and the admin cash-payment demo:
+
+```powershell
+python tests\unitTests\runAllUnitTests.py
+```
+
+The second command prints the unit-test pass count, then shows the manual cash
+payment moving from **Pending** to **Paid** after admin confirmation.

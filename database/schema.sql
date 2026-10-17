@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS user (
     is_admin INTEGER DEFAULT 0
 );
 -- 2. Event Table
-CREATE TABLE event (
+CREATE TABLE IF NOT EXISTS event (
     event_id INTEGER PRIMARY KEY,
     admin_id INTEGER,
     name TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE event (
 );
 
 --3. Appointment Table
-CREATE TABLE appointment (
+CREATE TABLE IF NOT EXISTS appointment (
     appointment_id INTEGER PRIMARY KEY,
     user_id INTEGER,
     appointmentTime DATETIME,
@@ -28,7 +28,7 @@ CREATE TABLE appointment (
  );   
 
 --4. Item Table
-CREATE TABLE item (
+CREATE TABLE IF NOT EXISTS item (
     item_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -38,7 +38,7 @@ CREATE TABLE item (
  );   
 
  --5. Order Table
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
     order_id INTEGER PRIMARY KEY,
     user_id INTEGER,
     orderDateTime DATETIME,
@@ -46,16 +46,14 @@ CREATE TABLE orders (
     FOREIGN KEY (user_id) REFERENCES user(user_id)
  ); 
 
-   --6. Payment Table
-CREATE TABLE payment (
+--6. Payment Table
+CREATE TABLE IF NOT EXISTS payment (
     payment_id INTEGER PRIMARY KEY,
-    order_id INTEGER,
-    paymentDateTime DATETIME,
-    amount REAL,
-    paymentMethod TEXT,
-    paidstatus BOOLEAN,
-    details TEXT,
+    order_id INTEGER NOT NULL,
+    paymentDateTime DATETIME NOT NULL,
+    amount REAL NOT NULL CHECK (amount > 0),
+    paymentMethod TEXT NOT NULL,
+    paidstatus INTEGER NOT NULL CHECK (paidstatus IN (0, 1)),
+    details TEXT NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders(order_id)
- ); 
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
- ); 
+);

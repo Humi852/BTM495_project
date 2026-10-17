@@ -91,6 +91,7 @@ h2 {
 }
 
 .card {
+  margin-bottom: 20px;
   padding: 28px;
   border: 1px solid #e0e7f0;
   border-radius: 14px;
@@ -111,6 +112,20 @@ button {
 
 button:hover {
   background: #19498f;
+}
+
+button:disabled {
+  background: #8493a8;
+  cursor: not-allowed;
+}
+
+.button-secondary {
+  color: #33445c;
+  background: #e8edf3;
+}
+
+.button-secondary:hover {
+  background: #d9e1eb;
 }
 
 button:focus-visible {
@@ -152,6 +167,77 @@ th:last-child {
   font-weight: 600;
 }
 
+.row-pending {
+  color: #7b5710;
+  font-weight: 600;
+}
+
+dialog {
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 28px;
+  border: 1px solid #e0e7f0;
+  border-radius: 14px;
+  color: inherit;
+  box-shadow: 0 18px 60px rgb(25 37 54 / 24%);
+}
+
+dialog::backdrop {
+  background: rgb(16 27 42 / 58%);
+}
+
+.dialog-heading,
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-heading h2 {
+  margin-bottom: 0;
+}
+
+.dialog-heading .eyebrow {
+  margin-bottom: 6px;
+}
+
+#payment-form label {
+  display: block;
+  margin: 18px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#payment-form input,
+#payment-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #c8d2df;
+  border-radius: 8px;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+}
+
+#payment-form input:focus,
+#payment-form select:focus {
+  outline: 3px solid #97baff;
+  outline-offset: 1px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.dialog-actions {
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
 .error {
   margin: 20px 0 0;
   padding: 12px 14px;
@@ -179,5 +265,14 @@ th:last-child {
 
   .card {
     padding: 20px;
+  }
+
+  dialog {
+    padding: 20px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 }

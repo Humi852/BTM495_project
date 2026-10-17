@@ -4,27 +4,27 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>LPVR Local Integration Test</title>
+    <title>LPVR Local Dry-Run Website</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <main class="page">
       <header class="header">
         <div>
-          <p class="eyebrow">LOCAL DEVELOPMENT</p>
-          <h1>Integration test</h1>
-          <p class="subtitle">Check that the local web page, API, and SQLite database are connected.</p>
+          <p class="eyebrow">LOCAL DEVELOPMENT · MOCK PAYMENTS</p>
+          <h1>Local dry-run website</h1>
+          <p class="subtitle">Review application data and simulate credit-card payments.</p>
         </div>
-        <span id="overall-status" class="status status-pending">Checking…</span>
+        <span id="overall-status" class="status status-pending">Loading…</span>
       </header>
 
       <section class="card">
         <div class="card-heading">
           <div>
-            <h2>Database connection</h2>
+            <h2>Database structure</h2>
             <p id="database-name" class="muted">Waiting for API response</p>
           </div>
-          <button id="refresh-button" type="button">Run test again</button>
+          <button id="refresh-button" type="button">Refresh data</button>
         </div>
         <p id="error-message" class="error" role="alert" hidden></p>
         <div class="table-wrap">
@@ -33,17 +33,96 @@
               <tr>
                 <th scope="col">SQLite table</th>
                 <th scope="col">Rows</th>
-                <th scope="col">Result</th>
               </tr>
             </thead>
             <tbody id="table-results">
-              <tr><td colspan="3" class="muted">Loading database status…</td></tr>
+              <tr><td colspan="2" class="muted">Loading database structure…</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <p class="footnote">This smoke test only reads the database; it does not create, update, or delete records.</p>
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <h2>Orders</h2>
+            <p class="muted">Payments use the total stored on an existing order. A sample order is added if needed.</p>
+          </div>
+          <button id="make-payment-button" type="button">Make a payment</button>
+        </div>
+        <p id="order-message" class="muted" role="status"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Date</th>
+                <th scope="col">Total</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="order-results">
+              <tr><td colspan="4" class="muted">Loading orders…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Payment history</h2>
+        <p class="muted">Sample orders are saved to SQLite; payment attempts and card details are not.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Payment</th>
+                <th scope="col">Order</th>
+                <th scope="col">Date</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Method</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="payment-history">
+              <tr><td colspan="6" class="muted">Loading payment history…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <dialog id="payment-dialog" aria-labelledby="payment-title">
+        <form id="payment-form">
+          <div class="dialog-heading">
+            <div>
+              <p class="eyebrow">MOCK CREDIT CARD</p>
+              <h2 id="payment-title">Payment details</h2>
+            </div>
+            <button id="close-dialog-button" class="button-secondary" type="button" aria-label="Close payment form">Close</button>
+          </div>
+          <p class="muted">This local simulation never contacts a bank or stores card details.</p>
+          <label for="order-id">Order</label>
+          <select id="order-id" name="order_id" required></select>
+          <label for="card-number">Card number</label>
+          <input id="card-number" name="card_number" type="text" autocomplete="cc-number" placeholder="4242424242424242" required>
+          <div class="form-row">
+            <div>
+              <label for="expiration-date">Expiration (MM/YY)</label>
+              <input id="expiration-date" name="expiration_date" type="text" autocomplete="cc-exp" placeholder="12/30" required>
+            </div>
+            <div>
+              <label for="cvv">Security code</label>
+              <input id="cvv" name="cvv" type="password" autocomplete="cc-csc" placeholder="123" required>
+            </div>
+          </div>
+          <p id="payment-error" class="error" role="alert" hidden></p>
+          <div class="dialog-actions">
+            <button id="cancel-payment-button" class="button-secondary" type="button">Cancel</button>
+            <button id="confirm-payment-button" type="submit">Review payment</button>
+          </div>
+        </form>
+      </dialog>
+
+      <p class="footnote">Only the approved test card succeeds. Sample orders are saved, but payment attempts and card details are not. No external bank is contacted.</p>
     </main>
     <script src="/app.js" defer></script>
   </body>
