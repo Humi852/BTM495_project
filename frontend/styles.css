@@ -1,0 +1,183 @@
+:root {
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #192536;
+  background: #f3f6fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.page {
+  width: min(900px, calc(100% - 40px));
+  margin: 64px auto;
+}
+
+.header,
+.card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #536b8b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: clamp(30px, 5vw, 42px);
+}
+
+h2 {
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+
+.subtitle,
+.muted,
+.footnote {
+  color: #65748a;
+}
+
+.subtitle,
+.card-heading p {
+  margin-bottom: 0;
+}
+
+.status {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-pending {
+  color: #604b0c;
+  background: #fff1c2;
+}
+
+.status-ok {
+  color: #17643a;
+  background: #d9f5e5;
+}
+
+.status-error {
+  color: #8c2631;
+  background: #ffe1e3;
+}
+
+.card {
+  padding: 28px;
+  border: 1px solid #e0e7f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(25 37 54 / 6%);
+}
+
+button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #245cb3;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #19498f;
+}
+
+button:focus-visible {
+  outline: 3px solid #97baff;
+  outline-offset: 2px;
+}
+
+.table-wrap {
+  margin-top: 24px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 13px 12px;
+  border-bottom: 1px solid #e8edf3;
+}
+
+th {
+  color: #536b8b;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+td:last-child,
+th:last-child {
+  text-align: right;
+}
+
+.row-ok {
+  color: #17643a;
+  font-weight: 600;
+}
+
+.error {
+  margin: 20px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  color: #8c2631;
+  background: #fff0f1;
+  overflow-wrap: anywhere;
+}
+
+.footnote {
+  margin: 16px 2px;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .page {
+    margin: 32px auto;
+  }
+
+  .header,
+  .card-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .card {
+    padding: 20px;
+  }
+}
