@@ -1,23 +1,7 @@
-# Connect the database and backend.
-
-from backend.models.user import User
 from backend.services.payment import Payment
-from database.db import initialize_database
 
-if __name__ == "__main__":
-    initialize_database()
 
-    user1 = User(
-        name="Alice",
-        email="alice@example.com"
-    )
-
-    print("Name:", user1.name)
-    print("Email:", user1.email)
-    print("User ID:", user1.userID if user1.userID is not None else "Not saved")
-
-if __name__ == "__main__":
-
+def main() -> None:
     print("===== Payment System =====")
     print("1. Credit Card")
     print("2. Cash (Pay at Shop)")
@@ -32,7 +16,7 @@ if __name__ == "__main__":
 
     else:
         print("Invalid payment method.")
-        exit()
+        return
 
     # Create Payment Object
     payment = Payment(1, 101, 50.00, paymentMethod)
@@ -87,3 +71,7 @@ if __name__ == "__main__":
 
     if payment.paymentDate:
         print("Payment Date:", payment.paymentDate)
+
+
+if __name__ == "__main__":
+    main()
