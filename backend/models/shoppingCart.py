@@ -42,6 +42,14 @@ class ShoppingCart:
     def checkout(self, orderId: int) -> Order | str:
         if not self.items:
             return "Cart is empty."
+        stock_error = self._stockError()
+        if stock_error is not None:
+            return stock_error
+        order = Order(orderId, self.calculateTotal())
+        order.placeOrder()
+        return self._completeCheckout(order)
+
+    def _stockError(self) -> str | None:
         for cart_item in self.items.values():
             item = cart_item.item
             if (
@@ -49,8 +57,9 @@ class ShoppingCart:
                 and cart_item.quantity > item.checkStock()
             ):
                 return "Item out of stock."
-        order = Order(orderId, self.calculateTotal())
-        order.placeOrder()
+        return None
+
+    def _completeCheckout(self, order: Order) -> Order:
         for cart_item in self.items.values():
             item = cart_item.item
             if hasattr(item, "stockQuantity"):

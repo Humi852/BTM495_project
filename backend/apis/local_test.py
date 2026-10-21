@@ -215,34 +215,34 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
         try:
             with closing(sqlite3.connect(DB_PATH)) as connection:
                 customer = connection.execute(
-                    "SELECT user_id FROM user WHERE email = ?",
+                    "SELECT customer_id FROM customer WHERE email = ?",
                     (self.DEMO_CUSTOMER_EMAIL,),
                 ).fetchone()
                 if customer is None:
                     cursor = connection.execute(
-                        "INSERT INTO user (name, email) VALUES (?, ?)",
+                        "INSERT INTO customer (name, email) VALUES (?, ?)",
                         ("Local Payment Demo", self.DEMO_CUSTOMER_EMAIL),
                     )
-                    user_id = cursor.lastrowid
+                    customer_id = cursor.lastrowid
                 else:
-                    user_id = customer[0]
+                    customer_id = customer[0]
 
                 order = connection.execute(
                     "SELECT o.order_id, o.orderDateTime, o.totalAmount "
-                    "FROM orders o WHERE o.user_id = ? "
+                    "FROM orders o WHERE o.customer_id = ? "
                     "AND NOT EXISTS ("
                     "SELECT 1 FROM payment p "
                     "WHERE p.order_id = o.order_id AND p.paidstatus = 1"
                     ") ORDER BY o.order_id DESC LIMIT 1",
-                    (user_id,),
+                    (customer_id,),
                 ).fetchone()
 
                 if order is None:
                     order_date = datetime.now().isoformat(timespec="seconds")
                     cursor = connection.execute(
-                        "INSERT INTO orders (user_id, orderDateTime, totalAmount) "
+                        "INSERT INTO orders (customer_id, orderDateTime, totalAmount) "
                         "VALUES (?, ?, ?)",
-                        (user_id, order_date, self.DEMO_ORDER_AMOUNT),
+                        (customer_id, order_date, self.DEMO_ORDER_AMOUNT),
                     )
                     order = (
                         cursor.lastrowid,

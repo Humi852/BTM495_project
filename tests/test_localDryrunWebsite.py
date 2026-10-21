@@ -28,10 +28,11 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 [(1,), (2,)],
             )
             connection.execute(
-                "INSERT INTO user (user_id, name) VALUES (1, 'Test Customer')"
+                "INSERT INTO customer (customer_id, name) "
+                "VALUES (1, 'Test Customer')"
             )
             connection.execute(
-                "INSERT INTO orders (order_id, user_id, totalAmount) "
+                "INSERT INTO orders (order_id, customer_id, totalAmount) "
                 "VALUES (101, 1, 42.50)"
             )
             connection.commit()
@@ -68,13 +69,15 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         self.assertEqual(
             payload["tables"],
             [
+                {"name": "admin", "rows": 0},
                 {"name": "appointment", "rows": 0},
+                {"name": "customer", "rows": 1},
                 {"name": "event", "rows": 0},
                 {"name": "item", "rows": 0},
+                {"name": "order_item", "rows": 0},
                 {"name": "orders", "rows": 1},
                 {"name": "payment", "rows": 0},
                 {"name": "sample", "rows": 2},
-                {"name": "user", "rows": 1},
             ],
         )
 
@@ -134,12 +137,12 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         self.assertEqual(first_payload["order"]["total_amount"], 50.0)
         with closing(sqlite3.connect(self.database_path)) as connection:
             sample_user_count = connection.execute(
-                "SELECT COUNT(*) FROM user "
+                "SELECT COUNT(*) FROM customer "
                 "WHERE email = 'local-payment-demo@example.invalid'"
             ).fetchone()[0]
             sample_order_count = connection.execute(
-                "SELECT COUNT(*) FROM orders WHERE user_id = "
-                "(SELECT user_id FROM user "
+                "SELECT COUNT(*) FROM orders WHERE customer_id = "
+                "(SELECT customer_id FROM customer "
                 "WHERE email = 'local-payment-demo@example.invalid')"
             ).fetchone()[0]
         self.assertEqual(sample_user_count, 1)

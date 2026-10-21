@@ -1,52 +1,78 @@
---1.User table 
-CREATE TABLE IF NOT EXISTS user (
-    user_id INTEGER PRIMARY KEY,
+-- 1. Admin Table
+CREATE TABLE IF NOT EXISTS admin (
+    admin_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT UNIQUE,
     phone TEXT,
     address TEXT,
-    password_hash TEXT,
-    is_admin INTEGER DEFAULT 0
+    password_hash TEXT
 );
--- 2. Event Table
+
+--2. Customer Table
+CREATE TABLE IF NOT EXISTS customer (
+    customer_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    phone TEXT,
+    address TEXT,
+    password_hash TEXT
+);
+-- Prevent duplicate email entries for admin and customer tables
+DROP TRIGGER IF EXISTS admin_email_insert_unique;
+DROP TRIGGER IF EXISTS admin_email_update_unique;
+DROP TRIGGER IF EXISTS customer_email_insert_unique;
+DROP TRIGGER IF EXISTS customer_email_update_unique;
+
+-- 3. Event Table
 CREATE TABLE IF NOT EXISTS event (
     event_id INTEGER PRIMARY KEY,
     admin_id INTEGER,
+    cutomer_id INTEGER,
     name TEXT NOT NULL,
     description TEXT,
     eventDateTime DATETIME,
     participantLimit INTEGER,
-    FOREIGN KEY (admin_id) REFERENCES user(user_id)    
+    FOREIGN KEY (admin_id) REFERENCES admin(admin_id)
+    FOREIGN KEY (customer_id) REFERENCES customer(customer_id
 );
-
---3. Appointment Table
+-- 4. Appointment Table
 CREATE TABLE IF NOT EXISTS appointment (
     appointment_id INTEGER PRIMARY KEY,
-    user_id INTEGER,
+    customer_id INTEGER,
+    admin_id INTEGER,
     appointmentTime DATETIME,
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
- );   
-
---4. Item Table
-CREATE TABLE IF NOT EXISTS item (
-    item_id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    sellingprice REAL,
-    costprice REAL,
-    stock_quantity INTEGER
+    description TEXT
+    FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+    FOREIGN KEY (admin_id) REFERENCES admin(admin_id
  );   
 
  --5. Order Table
 CREATE TABLE IF NOT EXISTS orders (
     order_id INTEGER PRIMARY KEY,
-    user_id INTEGER,
+    customer_id INTEGER,
     orderDateTime DATETIME,
     totalAmount REAL,
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
- ); 
+    FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+ ); -- 8. Order_Item Table
+CREATE TABLE IF NOT EXISTS order_item (
+    order_id INTEGER,
+    item_id INTEGER,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    PRIMARY KEY (order_id, item_id),
+    FOREIGN KEY (order_id) REFERENCES orders(order_id),
+    FOREIGN KEY (item_id) REFERENCES item(item_id)
+);
 
---6. Payment Table
+--6. Item Table
+CREATE TABLE IF NOT EXISTS item (
+    item_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    price REAL,
+    stock_quantity INTEGER
+ );
+
+--7. Payment Table
 CREATE TABLE IF NOT EXISTS payment (
     payment_id INTEGER PRIMARY KEY,
     order_id INTEGER NOT NULL,

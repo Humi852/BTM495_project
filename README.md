@@ -19,16 +19,22 @@ SQLite provides the database. Its tables are defined in
 
 - `backend/models/` contains Python classes for the project concepts, such as
   users, events, orders, carts, items, and payments.
-- `backend/services/` contains service logic for user profiles, inventory, and
-  payments. Inventory management operates on the domain types in
-  `backend/models/`.
+- `backend/services/` contains service logic for user profiles, inventory,
+  ordering, and payments. Inventory management and checkout operate on the
+  domain types in `backend/models/`.
 - `backend/apis/local_test.py` serves the local website and its API.
 - `database/schema.sql` defines the SQLite tables.
-- `database/db.py` initializes the database.
+- `database/db.py` initializes the database from its schema.
+- `admin` and `customer` store their own profile records. `User` is the shared
+  in-memory base type; `Admin` and `Customer` are its role-specific types.
+- Checked-out cart contents are stored in `order_item`, including each
+  item's quantity and checkout-time unit-price snapshot. `OrderService`
+  persists the order and lines, decrements available database stock, and
+  clears the cart only after the transaction succeeds.
 - `frontend/` contains the website HTML, CSS, and JavaScript.
-- `tests/` contains the website tests. `tests/unitTests/` contains the payment
-  and user-profile unit tests, domain-model tests, and the manual cash-payment
-  demo.
+- `tests/` contains the website tests. `tests/unitTests/` contains SQLite
+  schema, payment, user-profile, order-service, and domain-model tests, along
+  with the manual cash-payment demo.
 - `main.py` runs the command-line payment example.
 - `testInLocalWebPage.py` starts the local website.
 
