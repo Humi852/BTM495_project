@@ -15,13 +15,15 @@ class UserService:
         role_table, _ = self._roleTable(user)
         with closing(sqlite3.connect(self.databasePath)) as connection:
             cursor = connection.execute(
-                f"INSERT INTO {role_table} (name, email, phone, address) "
-                "VALUES (?, ?, ?, ?)",
+                f"INSERT INTO {role_table} "
+                "(name, email, phone, address, password_hash) "
+                "VALUES (?, ?, ?, ?, ?)",
                 (
                     user.name,
                     user.email,
                     user.phone,
                     user.address,
+                    user.password_hash,
                 ),
             )
             connection.commit()
@@ -32,7 +34,7 @@ class UserService:
         role_table, id_column = self._roleTableForType(userType)
         with closing(sqlite3.connect(self.databasePath)) as connection:
             row = connection.execute(
-                f"SELECT {id_column}, name, email, phone, address "
+                f"SELECT {id_column}, name, email, phone, address, password_hash "
                 f"FROM {role_table} WHERE {id_column} = ?",
                 (userID,),
             ).fetchone()
@@ -46,6 +48,7 @@ class UserService:
             email=row[2],
             phone=row[3] or "",
             address=row[4] or "",
+            password_hash=row[5],
         )
 
     def updateProfile(self, user: User) -> bool:
@@ -56,12 +59,13 @@ class UserService:
         with closing(sqlite3.connect(self.databasePath)) as connection:
             cursor = connection.execute(
                 f"UPDATE {role_table} SET name = ?, email = ?, phone = ?, "
-                f"address = ? WHERE {id_column} = ?",
+                f"address = ?, password_hash = ? WHERE {id_column} = ?",
                 (
                     user.name,
                     user.email,
                     user.phone,
                     user.address,
+                    user.password_hash,
                     user.userID,
                 ),
             )

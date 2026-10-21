@@ -38,8 +38,10 @@ SQLite provides the database. Its tables are defined in
 - `main.py` runs the command-line payment example.
 - `testInLocalWebPage.py` starts the local website.
 
-User profile creation is supported through `UserService`. Password handling
-and authentication are outside the current application scope.
+User profile creation is supported through `UserService`. The model and
+database use `password_hash` for the stored credential value. Supply only a
+properly hashed value; password hashing and authentication are outside the
+current application scope.
 
 ## Run the Python payment example
 

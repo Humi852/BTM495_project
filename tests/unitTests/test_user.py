@@ -48,13 +48,29 @@ class UserServiceTests(unittest.TestCase):
 
     def test_create_and_get_admin_profile(self) -> None:
         admin = self.user_service.createUser(
-            Admin(name="Morgan", email="morgan@example.com")
+            Admin(
+                name="Morgan",
+                email="morgan@example.com",
+                password_hash="test-hash",
+            )
         )
 
         saved_admin = self.user_service.getUser(admin.userID, Admin)
 
         self.assertIsNotNone(saved_admin)
         self.assertTrue(saved_admin.isAdmin)
+        self.assertEqual(saved_admin.password_hash, "test-hash")
+
+    def test_update_profile_persists_password_hash(self) -> None:
+        user = self.user_service.createUser(
+            Customer(name="Alice", email="alice@example.com")
+        )
+        user.password_hash = "updated-test-hash"
+
+        self.assertTrue(self.user_service.updateProfile(user))
+        saved_user = self.user_service.getUser(user.userID, Customer)
+
+        self.assertEqual(saved_user.password_hash, "updated-test-hash")
 
     def test_update_profile(self) -> None:
         user = self.user_service.createUser(
