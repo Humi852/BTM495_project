@@ -7,7 +7,8 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from backend.models.user import Admin, Customer
+from backend.models.customer import Customer
+from backend.models.user import Admin
 from backend.services.user import UserService
 from database.db import initialize_database
 from database.db import initialize_database
@@ -35,11 +36,11 @@ class UserServiceTests(unittest.TestCase):
             )
         )
 
-        saved_user = self.user_service.getUser(user.userID, Customer)
+        saved_user = self.user_service.getUser(user.customerID, Customer)
 
-        self.assertIsNotNone(user.userID)
+        self.assertIsNotNone(user.customerID)
         self.assertIsNotNone(saved_user)
-        self.assertEqual(saved_user.userID, user.userID)
+        self.assertEqual(saved_user.customerID, user.customerID)
         self.assertEqual(saved_user.name, "Alice")
         self.assertEqual(saved_user.email, "alice@example.com")
         self.assertEqual(saved_user.phone, "555-0100")
@@ -55,9 +56,10 @@ class UserServiceTests(unittest.TestCase):
             )
         )
 
-        saved_admin = self.user_service.getUser(admin.userID, Admin)
+        saved_admin = self.user_service.getUser(admin.adminID, Admin)
 
         self.assertIsNotNone(saved_admin)
+        self.assertEqual(saved_admin.adminID, admin.adminID)
         self.assertTrue(saved_admin.isAdmin)
         self.assertEqual(saved_admin.password_hash, "test-hash")
 
@@ -68,7 +70,7 @@ class UserServiceTests(unittest.TestCase):
         user.password_hash = "updated-test-hash"
 
         self.assertTrue(self.user_service.updateProfile(user))
-        saved_user = self.user_service.getUser(user.userID, Customer)
+        saved_user = self.user_service.getUser(user.customerID, Customer)
 
         self.assertEqual(saved_user.password_hash, "updated-test-hash")
 
@@ -80,7 +82,7 @@ class UserServiceTests(unittest.TestCase):
         user.phone = "555-0199"
 
         self.assertTrue(self.user_service.updateProfile(user))
-        saved_user = self.user_service.getUser(user.userID, Customer)
+        saved_user = self.user_service.getUser(user.customerID, Customer)
 
         self.assertEqual(saved_user.name, "Alice Smith")
         self.assertEqual(saved_user.phone, "555-0199")
@@ -106,7 +108,7 @@ class UserServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Email must contain"):
             self.user_service.updateProfile(user)
 
-        saved_user = self.user_service.getUser(user.userID, Customer)
+        saved_user = self.user_service.getUser(user.customerID, Customer)
         self.assertEqual(saved_user.email, "alice@example.com")
 
     def test_profile_confirmation_helpers(self) -> None:

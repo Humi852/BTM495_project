@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.models.part import Part
 from backend.models.shoppingCart import ShoppingCart
-from backend.models.user import Customer
+from backend.models.customer import Customer
 from backend.services.order import OrderService
 from backend.services.user import UserService
 from database.db import initialize_database
@@ -40,7 +40,7 @@ class OrderServiceTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_checkout_persists_order_lines_and_decrements_stock(self) -> None:
-        order = self.service.checkout(self.cart, self.customer.userID)
+        order = self.service.checkout(self.cart, self.customer.customerID)
 
         self.assertEqual(order.orderId, 1)
         self.assertEqual(order.status, "Placed")
@@ -52,7 +52,7 @@ class OrderServiceTests(unittest.TestCase):
                 connection.execute(
                     "SELECT customer_id, totalAmount FROM orders WHERE order_id = 1"
                 ).fetchone(),
-                (self.customer.userID, 17.0),
+                (self.customer.customerID, 17.0),
             )
             self.assertEqual(
                 connection.execute(
@@ -68,7 +68,10 @@ class OrderServiceTests(unittest.TestCase):
                 (3,),
             )
 
-        self.assertEqual(self.service.checkout(self.cart, self.customer.userID), "Cart is empty.")
+        self.assertEqual(
+            self.service.checkout(self.cart, self.customer.customerID),
+            "Cart is empty.",
+        )
 
     def test_insufficient_database_stock_leaves_cart_and_data_unchanged(self) -> None:
         with closing(sqlite3.connect(self.database_path)) as connection:
@@ -78,7 +81,7 @@ class OrderServiceTests(unittest.TestCase):
             connection.commit()
 
         self.assertEqual(
-            self.service.checkout(self.cart, self.customer.userID),
+            self.service.checkout(self.cart, self.customer.customerID),
             "Item out of stock.",
         )
         self.assertEqual(self.cart.items[10].quantity, 2)
@@ -104,7 +107,7 @@ class OrderServiceTests(unittest.TestCase):
         self.cart.addItem(missing_part)
 
         with self.assertRaisesRegex(ValueError, "Item 99 does not exist"):
-            self.service.checkout(self.cart, self.customer.userID)
+            self.service.checkout(self.cart, self.customer.customerID)
 
         self.assertEqual(len(self.cart.items), 2)
         with closing(sqlite3.connect(self.database_path)) as connection:
@@ -129,7 +132,7 @@ class OrderServiceTests(unittest.TestCase):
             connection.commit()
 
         self.assertEqual(
-            self.service.checkout(self.cart, self.customer.userID),
+            self.service.checkout(self.cart, self.customer.customerID),
             "Item out of stock.",
         )
         self.assertEqual(self.cart.items[10].quantity, 2)

@@ -8,10 +8,8 @@ class User(ABC):
         email: str,
         phone: str = "",
         address: str = "",
-        userID: int | None = None,
         password_hash: str | None = None,
     ) -> None:
-        self.userID = userID
         self.name = name
         self.email = email
         self.phone = phone
@@ -24,13 +22,20 @@ class User(ABC):
         raise NotImplementedError
 
 class Admin(User):
+    def __init__(
+        self,
+        name: str,
+        email: str,
+        phone: str = "",
+        address: str = "",
+        adminID: int | None = None,
+        password_hash: str | None = None,
+    ) -> None:
+        super().__init__(name, email, phone, address, password_hash)
+        self.adminID = adminID
+
     @property
     def isAdmin(self) -> bool:
         return True
-
-class Customer(User):
-    @property
-    def isAdmin(self) -> bool:
-        return False
 
 user = User
