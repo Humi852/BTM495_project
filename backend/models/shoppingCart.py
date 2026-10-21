@@ -51,6 +51,11 @@ class ShoppingCart:
                 return "Item out of stock."
         order = Order(orderId, self.calculateTotal())
         order.placeOrder()
+        for cart_item in self.items.values():
+            item = cart_item.item
+            if hasattr(item, "stockQuantity"):
+                item.stockQuantity -= cart_item.quantity
+        self.items.clear()
         return order
 
 

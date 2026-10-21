@@ -74,6 +74,21 @@ class UserServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Email is required"):
             self.user_service.createUser(User(name="Alice", email=" "))
 
+        with self.assertRaisesRegex(ValueError, "Email must contain"):
+            self.user_service.createUser(User(name="Alice", email="invalid"))
+
+    def test_update_profile_uses_the_same_email_validation(self) -> None:
+        user = self.user_service.createUser(
+            User(name="Alice", email="alice@example.com")
+        )
+        user.email = "invalid"
+
+        with self.assertRaisesRegex(ValueError, "Email must contain"):
+            self.user_service.updateProfile(user)
+
+        saved_user = self.user_service.getUser(user.userID)
+        self.assertEqual(saved_user.email, "alice@example.com")
+
     def test_profile_confirmation_helpers(self) -> None:
         self.assertTrue(
             self.user_service.validateInformation("Alice", "alice@example.com")

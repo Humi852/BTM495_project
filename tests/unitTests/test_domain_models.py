@@ -9,7 +9,11 @@ from backend.models.event import Event
 from backend.models.item import Item
 from backend.models.part import Part
 from backend.models.shoppingCart import ShoppingCart
-from backend.services.inventory import Inventory
+from backend.services.inventory import (
+    Inventory,
+    Item as ServiceItem,
+    Part as ServicePart,
+)
 
 
 class EventTests(unittest.TestCase):
@@ -62,6 +66,10 @@ class ShoppingCartTests(unittest.TestCase):
         self.assertEqual(order.orderId, 20)
         self.assertEqual(order.status, "Placed")
         self.assertEqual(order.getTotalPrice(), 34.0)
+        self.assertEqual(self.part.checkStock(), 1)
+        self.assertEqual(self.cart.items, {})
+        self.assertEqual(self.cart.calculateTotal(), 0)
+        self.assertEqual(self.cart.checkout(21), "Cart is empty.")
 
     def test_cart_enforces_stock_and_item_presence(self) -> None:
         self.assertEqual(
@@ -75,6 +83,8 @@ class ShoppingCartTests(unittest.TestCase):
         self.cart.addItem(self.part, 2)
         self.part.stockQuantity = 1
         self.assertEqual(self.cart.checkout(20), "Item out of stock.")
+        self.assertEqual(self.part.checkStock(), 1)
+        self.assertEqual(self.cart.items[10].quantity, 2)
 
     def test_non_stock_item_and_removal(self) -> None:
         item = Item(11, "Tune-up", "Basic service", 30.0)
@@ -85,6 +95,10 @@ class ShoppingCartTests(unittest.TestCase):
 
 
 class InventoryTests(unittest.TestCase):
+    def test_inventory_module_preserves_model_imports(self) -> None:
+        self.assertIs(ServiceItem, Item)
+        self.assertIs(ServicePart, Part)
+
     def test_inventory_add_update_and_stock_queries(self) -> None:
         inventory = Inventory(1)
         part = Part(10, "Tube", "Inner tube", 8.5, "Tires", "RoadCo", 5)

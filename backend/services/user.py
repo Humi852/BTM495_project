@@ -69,7 +69,7 @@ class UserService:
 
     @staticmethod
     def validateInformation(name: str, email: str) -> bool:
-        return bool(name.strip() and "@" in email)
+        return UserService._profileValidationError(name, email) is None
 
     @staticmethod
     def confirmInformation(confirmation: str) -> bool:
@@ -77,7 +77,16 @@ class UserService:
 
     @staticmethod
     def _validateProfile(user: User) -> None:
-        if not user.name.strip():
-            raise ValueError("Name is required.")
-        if not user.email.strip():
-            raise ValueError("Email is required.")
+        error = UserService._profileValidationError(user.name, user.email)
+        if error is not None:
+            raise ValueError(error)
+
+    @staticmethod
+    def _profileValidationError(name: str, email: str) -> str | None:
+        if not name.strip():
+            return "Name is required."
+        if not email.strip():
+            return "Email is required."
+        if "@" not in email:
+            return "Email must contain '@'."
+        return None
