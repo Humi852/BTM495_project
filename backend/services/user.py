@@ -2,8 +2,9 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+from backend.models.admin import Admin
 from backend.models.customer import Customer
-from backend.models.user import Admin, User
+from backend.models.user import User
 from database.db import DB_PATH
 
 

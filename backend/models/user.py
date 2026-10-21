@@ -21,21 +21,4 @@ class User(ABC):
     def isAdmin(self) -> bool:
         raise NotImplementedError
 
-class Admin(User):
-    def __init__(
-        self,
-        name: str,
-        email: str,
-        phone: str = "",
-        address: str = "",
-        adminID: int | None = None,
-        password_hash: str | None = None,
-    ) -> None:
-        super().__init__(name, email, phone, address, password_hash)
-        self.adminID = adminID
-
-    @property
-    def isAdmin(self) -> bool:
-        return True
-
 user = User

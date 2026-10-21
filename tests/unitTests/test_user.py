@@ -7,8 +7,8 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from backend.models.admin import Admin
 from backend.models.customer import Customer
-from backend.models.user import Admin
 from backend.services.user import UserService
 from database.db import initialize_database
 from database.db import initialize_database
@@ -52,6 +52,8 @@ class UserServiceTests(unittest.TestCase):
             Admin(
                 name="Morgan",
                 email="morgan@example.com",
+                phone="555-0101",
+                address="1 Admin Way",
                 password_hash="test-hash",
             )
         )
@@ -60,6 +62,10 @@ class UserServiceTests(unittest.TestCase):
 
         self.assertIsNotNone(saved_admin)
         self.assertEqual(saved_admin.adminID, admin.adminID)
+        self.assertEqual(saved_admin.name, "Morgan")
+        self.assertEqual(saved_admin.email, "morgan@example.com")
+        self.assertEqual(saved_admin.phone, "555-0101")
+        self.assertEqual(saved_admin.address, "1 Admin Way")
         self.assertTrue(saved_admin.isAdmin)
         self.assertEqual(saved_admin.password_hash, "test-hash")
 
