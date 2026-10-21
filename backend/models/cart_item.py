@@ -8,6 +8,3 @@ class CartItem:
 
     def getSubtotal(self) -> float:
         return self.item.getPrice() * self.quantity
-
-
-cartItem = CartItem

@@ -1,4 +1,9 @@
-from backend.services.payment import Payment
+from backend.apis.payment_api import Payment, PaymentMethod, PaymentStatus
+from backend.utils.validators import (
+    is_valid_card_number,
+    is_valid_cvv,
+    is_valid_expiration_date,
+)
 
 
 def main() -> None:
@@ -9,10 +14,10 @@ def main() -> None:
     choice = input("Select payment method (1 or 2): ")
 
     if choice == "1":
-        paymentMethod = "Credit Card"
+        paymentMethod = PaymentMethod.CREDIT_CARD.value
 
     elif choice == "2":
-        paymentMethod = "Cash"
+        paymentMethod = PaymentMethod.CASH.value
 
     else:
         print("Invalid payment method.")
@@ -22,33 +27,29 @@ def main() -> None:
     payment = Payment(1, 101, 50.00, paymentMethod)
 
     # Credit Card Payment
-    if paymentMethod == "Credit Card":
+    if paymentMethod == PaymentMethod.CREDIT_CARD:
 
         cardNumber = input("Enter card number (16 digits): ")
 
-        if len(cardNumber) != 16 or not cardNumber.isdigit():
+        if not is_valid_card_number(cardNumber):
             print("Invalid Card Number. Must contain 16 digits.")
-            payment.paidStatus = "Failed"
+            payment.paidStatus = PaymentStatus.FAILED
 
         else:
             expirationDate = input("Enter expiration date (MM/YY): ")
 
             if (
-                len(expirationDate) != 5
-                or expirationDate[2] != "/"
-                or not expirationDate[:2].isdigit()
-                or not expirationDate[3:].isdigit()
-                or not 1 <= int(expirationDate[:2]) <= 12
+                not is_valid_expiration_date(expirationDate)
             ):
                 print("Invalid Expiration Date. Use MM/YY.")
-                payment.paidStatus = "Failed"
+                payment.paidStatus = PaymentStatus.FAILED
 
             else:
                 cvv = input("Enter CVV (3 digits): ")
 
-                if len(cvv) != 3 or not cvv.isdigit():
+                if not is_valid_cvv(cvv):
                     print("Invalid CVV. Must contain 3 digits.")
-                    payment.paidStatus = "Failed"
+                    payment.paidStatus = PaymentStatus.FAILED
 
                 else:
                     payment.processPayment(
@@ -58,7 +59,7 @@ def main() -> None:
                     )
 
     # Cash Payment
-    elif paymentMethod == "Cash":
+    elif paymentMethod == PaymentMethod.CASH:
         payment.processPayment()
 
     # Display Payment Information
@@ -67,7 +68,7 @@ def main() -> None:
     print("Order ID:", payment.orderId)
     print(f"Amount: CAD ${payment.amount:.2f}")
     print("Payment Method:", payment.paymentMethod)
-    print("Payment Status:", payment.paidStatus)
+    print("Payment Status:", payment.paidStatus.value)
 
     if payment.paymentDate:
         print("Payment Date:", payment.paymentDate)

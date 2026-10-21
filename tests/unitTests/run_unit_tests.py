@@ -16,7 +16,7 @@ if __name__ == "__main__":
     )
     test_result = unittest.TextTestRunner(verbosity=2).run(test_suite)
     admin_demo = subprocess.run(
-        [sys.executable, str(test_directory / "test_admin_payment.py")],
+        [sys.executable, str(test_directory / "cash_payment_demo.py")],
         check=False,
     )
     passed_tests = (

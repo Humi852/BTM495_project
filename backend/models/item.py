@@ -13,6 +13,3 @@ class Item:
 
     def getPrice(self) -> float:
         return self.price
-
-
-item = Item

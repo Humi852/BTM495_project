@@ -1,8 +1,8 @@
 import argparse
 import webbrowser
 
-from backend.apis.local_test import create_server
-from database.db import initialize_database
+from backend.apis.local_website_api import create_server
+from database.sqlite_database import initialize_database
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765

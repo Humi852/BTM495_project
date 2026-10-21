@@ -5,6 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from backend.utils.constants import DATABASE_SCHEMA_COLUMNS
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = PROJECT_ROOT / "database" / "schema.sql"
@@ -36,11 +38,24 @@ class DatabaseSchemaTests(unittest.TestCase):
                 "event",
                 "appointment",
                 "item",
+                "shopping_cart",
                 "orders",
                 "order_item",
                 "payment",
             },
         )
+        self.assertEqual(tables, set(DATABASE_SCHEMA_COLUMNS))
+
+    def test_database_constants_match_schema_columns(self) -> None:
+        for table, expected_columns in DATABASE_SCHEMA_COLUMNS.items():
+            with self.subTest(table=table):
+                actual_columns = tuple(
+                    row[1]
+                    for row in self.connection.execute(
+                        f"PRAGMA table_info({table})"
+                    )
+                )
+                self.assertEqual(actual_columns, expected_columns)
 
     def test_primary_keys_are_defined_for_all_tables(self) -> None:
         expected_primary_keys = {
@@ -49,6 +64,7 @@ class DatabaseSchemaTests(unittest.TestCase):
             "event": ["event_id"],
             "appointment": ["appointment_id"],
             "item": ["item_id"],
+            "shopping_cart": ["customer_id"],
             "orders": ["order_id"],
             "order_item": ["order_id", "item_id"],
             "payment": ["payment_id"],
@@ -76,6 +92,7 @@ class DatabaseSchemaTests(unittest.TestCase):
             "event": {("admin_id", "admin", "admin_id")},
             "appointment": {("customer_id", "customer", "customer_id")},
             "orders": {("customer_id", "customer", "customer_id")},
+            "shopping_cart": {("customer_id", "customer", "customer_id")},
             "order_item": {
                 ("order_id", "orders", "order_id"),
                 ("item_id", "item", "item_id"),
@@ -109,6 +126,8 @@ class DatabaseSchemaTests(unittest.TestCase):
             INSERT INTO item
                 (item_id, name, description, sellingprice, costprice, stock_quantity)
                 VALUES (5, 'Road Tube', '700c inner tube', 8.5, 4.0, 10);
+            INSERT INTO shopping_cart (customer_id, items_json)
+                VALUES (2, '[{"item_id":5,"quantity":2,"price":8.5}]');
             INSERT INTO orders (order_id, customer_id, orderDateTime, totalAmount)
                 VALUES (6, 2, '2026-11-03', 17.0);
             INSERT INTO order_item (order_id, item_id, quantity, unit_price)
@@ -120,6 +139,13 @@ class DatabaseSchemaTests(unittest.TestCase):
             """
         )
 
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT customer_id, items_json FROM shopping_cart "
+                "WHERE customer_id = 2"
+            ).fetchone(),
+            (2, '[{"item_id":5,"quantity":2,"price":8.5}]'),
+        )
         self.assertEqual(
             self.connection.execute(
                 "SELECT event.name, admin.name "
@@ -167,6 +193,17 @@ class DatabaseSchemaTests(unittest.TestCase):
                 ("Another customer", "shared@example.com"),
             )
 
+    def test_shopping_cart_rejects_invalid_json(self) -> None:
+        self.connection.execute(
+            "INSERT INTO customer (customer_id, name) VALUES (1, 'Casey')"
+        )
+
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "INSERT INTO shopping_cart (customer_id, items_json) "
+                "VALUES (1, 'not-json')"
+            )
+
     def test_invalid_foreign_key_references_are_rejected(self) -> None:
         invalid_inserts = (
             (
@@ -175,6 +212,11 @@ class DatabaseSchemaTests(unittest.TestCase):
             ),
             (
                 "INSERT INTO appointment (customer_id) VALUES (999)",
+                (),
+            ),
+            (
+                "INSERT INTO shopping_cart (customer_id, items_json) "
+                "VALUES (999, '[]')",
                 (),
             ),
             (

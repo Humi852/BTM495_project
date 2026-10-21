@@ -12,36 +12,47 @@ for classes, attributes, and methods. The project was not generated from a
 Visual Paradigm model.
 
 SQLite provides the database. Its tables are defined in
-`database/schema.sql`, and `database/db.py` initializes the database file at
-`database/lpvr.db`.
+`database/schema.sql`, and `database/sqlite_database.py` initializes the
+database file at `database/lpvr.db`.
 
 ## Project structure
 
 - `backend/models/` contains Python classes for the project concepts, such as
-  users, events, orders, carts, items, and payments.
-- `backend/services/` contains service logic for user profiles, inventory,
-  ordering, and payments. Inventory management and checkout operate on the
-  domain types in `backend/models/`.
-- `backend/apis/local_test.py` serves the local website and its API.
+  users, events, appointments, orders, carts, inventory, items, and payments.
+- `backend/apis/` contains the local website API and focused application
+  operations for profiles, shopping-cart persistence, ordering, and payments.
+- `backend/utils/` contains shared SQLite query/transaction, validation,
+  logging, HTTP request/response helpers, operation responses, and schema
+  identifier constants.
 - `database/schema.sql` defines the SQLite tables.
-- `database/db.py` initializes the database from its schema.
+- `database/sqlite_database.py` initializes the database from its schema.
+- `shopping_cart` stores one active cart per customer as JSON item IDs,
+  quantities, and unit-price snapshots; successful database checkout clears it
+  in the same transaction as the order and inventory updates.
+- `ShoppingCart` in `backend/models/shopping_cart.py` contains in-memory cart
+  behavior; `ShoppingCartAPI` in `backend/apis/shopping_cart_api.py` handles
+  loading and persisting that cart.
+- Domain operations return `Response` values with a message, severity,
+  success flag, and optional data instead of bare status strings.
 - `admin` and `customer` store their own profile records. `User` is the shared
   in-memory base type; `Admin` and `Customer` are its role-specific types.
 - Checked-out cart contents are stored in `order_item`, including each
-  item's quantity and checkout-time unit-price snapshot. `OrderService`
-  persists the order and lines, decrements available database stock, and
-  clears the cart only after the transaction succeeds.
+  item's quantity and checkout-time unit-price snapshot. The order operations
+  in `backend/apis/order_api.py` persist the order and lines, decrement
+  available database stock, and clear the cart only after the transaction
+  succeeds.
 - `frontend/` contains the website HTML, CSS, and JavaScript.
 - `tests/` contains the website tests. `tests/unitTests/` contains SQLite
-  schema, payment, user-profile, order-service, and domain-model tests, along
+  schema, payment API, profile API, order API, and domain-model tests, along
   with the manual cash-payment demo.
 - `main.py` runs the command-line payment example.
-- `testInLocalWebPage.py` starts the local website.
+- `run_local_website.py` starts the local website.
 
-User profile creation is supported through `UserService`. The model and
-database use `password_hash` for the stored credential value. Supply only a
-properly hashed value; password hashing and authentication are outside the
-current application scope.
+User profile creation and updates are supported through `ManageProfile`.
+`createAccount` hashes the supplied password with PBKDF2 before storing it in
+the `password_hash` column. `login` checks both Admin and Customer accounts
+using only email and password; it returns the account only when exactly one
+role matches. Passwords must be at least eight characters.
 
 ## Run the Python payment example
 
@@ -59,7 +70,7 @@ mock payment flow; it does not contact a bank.
 From the project root, run:
 
 ```powershell
-python testInLocalWebPage.py
+python run_local_website.py
 ```
 
 The launcher starts a local server and attempts to open the site in your
@@ -84,7 +95,7 @@ bank or payment service is contacted. Press `Ctrl+C` in the server terminal to
 stop the website. To use a different port, for example, run:
 
 ```powershell
-python testInLocalWebPage.py --port 8766
+python run_local_website.py --port 8766
 ```
 
 ## Run the tests
@@ -92,14 +103,14 @@ python testInLocalWebPage.py --port 8766
 Run the local website tests:
 
 ```powershell
-python -m unittest discover -s tests -p "test_localDryrunWebsite.py"
+python -m unittest discover -s tests -p "test_local_website_api.py"
 ```
 
 Run the payment, user-profile, and domain-model unit tests, followed by the
 admin cash-payment demo:
 
 ```powershell
-python tests\unitTests\runAllUnitTests.py
+python tests\unitTests\run_unit_tests.py
 ```
 
 The second command prints the unit-test pass count, then shows the manual cash

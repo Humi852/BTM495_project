@@ -6,6 +6,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import main
+from backend.models.payment import PaymentStatus
 
 
 class MainTests(unittest.TestCase):
@@ -32,7 +33,7 @@ class MainTests(unittest.TestCase):
             payment.orderId = 101
             payment.amount = 50.0
             payment.paymentMethod = "Cash"
-            payment.paidStatus = "Pending"
+            payment.paidStatus = PaymentStatus.PENDING
 
             main.main()
 

@@ -62,6 +62,14 @@ CREATE TABLE IF NOT EXISTS item (
     stock_quantity INTEGER
 );
 
+-- Persist each customer's active cart as a JSON array of item IDs and quantities.
+CREATE TABLE IF NOT EXISTS shopping_cart (
+    customer_id INTEGER PRIMARY KEY,
+    items_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(items_json)),
+    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE
+);
+
 -- 7. Order_Item Table
 CREATE TABLE IF NOT EXISTS order_item (
     order_id INTEGER NOT NULL,

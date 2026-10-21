@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from backend.services.payment import Payment
+from backend.apis.payment_api import Payment
 
 
 if __name__ == "__main__":
@@ -13,9 +13,9 @@ if __name__ == "__main__":
     # Customer selects Pay at Shop.
     payment.processPayment()
 
-    print("Before Admin Confirmation:", payment.paidStatus)
+    print("Before Admin Confirmation:", payment.paidStatus.value)
 
     # Admin confirms the cash payment.
     payment.confirmCashPayment()
 
-    print("After Admin Confirmation:", payment.paidStatus)
+    print("After Admin Confirmation:", payment.paidStatus.value)

@@ -1,56 +1,56 @@
-import json
 import sqlite3
-from contextlib import closing
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from backend.services.payment import Payment
-from database.db import DB_PATH
+from backend.models.payment import Payment, PaymentMethod, PaymentStatus
+from backend.utils.constants import DatabaseColumns, DatabaseTables
+from backend.utils.http import HTTPRequestError, read_json_object, send_json
+from backend.utils.logger import configure_backend_logging, get_logger
+from backend.utils.sqlite import SQLiteQuery, SQLiteSession, quote_identifier
+from backend.utils.validators import string_value
+from database.sqlite_database import DB_PATH
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+logger = get_logger(__name__)
+
+
+def _database() -> SQLiteQuery:
+    return SQLiteQuery(DB_PATH)
+
+
+def _get_table_status(database: SQLiteSession) -> list[dict[str, object]]:
+    tables = database.fetch_all(
+        "SELECT name FROM sqlite_master "
+        "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+        "ORDER BY name",
+    )
+    table_status = []
+    for (table_name,) in tables:
+        row_count = database.fetch_one(
+            f"SELECT COUNT(*) FROM {quote_identifier(table_name)}"
+        )[0]
+        table_status.append({"name": table_name, "rows": row_count})
+    return table_status
 
 
 def get_database_status() -> dict[str, object]:
-    database_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
-    with closing(sqlite3.connect(database_uri, uri=True)) as connection:
-        tables = connection.execute(
-            "SELECT name FROM sqlite_master "
-            "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
-            "ORDER BY name"
-        ).fetchall()
-        table_status = []
-        for (table_name,) in tables:
-            quoted_name = table_name.replace('"', '""')
-            row_count = connection.execute(
-                f'SELECT COUNT(*) FROM "{quoted_name}"'
-            ).fetchone()[0]
-            table_status.append({"name": table_name, "rows": row_count})
+    database = _database()
+    with database.session(read_only=True) as session:
+        tables = _get_table_status(session)
 
     return {
         "status": "ok",
         "database": DB_PATH.name,
-        "tables": table_status,
+        "tables": tables,
     }
 
 
 def get_dashboard_data() -> dict[str, object]:
-    database_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
-    with closing(sqlite3.connect(database_uri, uri=True)) as connection:
-        tables = connection.execute(
-            "SELECT name FROM sqlite_master "
-            "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
-            "ORDER BY name"
-        ).fetchall()
-        table_status = []
-        for (table_name,) in tables:
-            quoted_name = table_name.replace('"', '""')
-            row_count = connection.execute(
-                f'SELECT COUNT(*) FROM "{quoted_name}"'
-            ).fetchone()[0]
-            table_status.append({"name": table_name, "rows": row_count})
-
+    database = _database()
+    with database.session(read_only=True) as session:
+        table_status = _get_table_status(session)
         orders = [
             {
                 "order_id": order_id,
@@ -58,11 +58,15 @@ def get_dashboard_data() -> dict[str, object]:
                 "total_amount": total_amount,
                 "paid": bool(paid),
             }
-            for order_id, order_date, total_amount, paid in connection.execute(
-                "SELECT o.order_id, o.orderDateTime, o.totalAmount, "
-                "EXISTS (SELECT 1 FROM payment p "
-                "WHERE p.order_id = o.order_id AND p.paidstatus = 1) "
-                "FROM orders o ORDER BY o.order_id DESC"
+            for order_id, order_date, total_amount, paid in session.fetch_all(
+                f"SELECT o.{DatabaseColumns.ORDER_ID}, "
+                f"o.{DatabaseColumns.ORDER_DATE_TIME}, "
+                f"o.{DatabaseColumns.TOTAL_AMOUNT}, "
+                f"EXISTS (SELECT 1 FROM {DatabaseTables.PAYMENT} p "
+                f"WHERE p.{DatabaseColumns.ORDER_ID} = o.{DatabaseColumns.ORDER_ID} "
+                f"AND p.{DatabaseColumns.PAID_STATUS} = 1) "
+                f"FROM {DatabaseTables.ORDERS} o "
+                f"ORDER BY o.{DatabaseColumns.ORDER_ID} DESC"
             )
         ]
         payments = [
@@ -83,10 +87,12 @@ def get_dashboard_data() -> dict[str, object]:
                 payment_method,
                 paid_status,
                 details,
-            ) in connection.execute(
-                "SELECT payment_id, order_id, paymentDateTime, amount, "
-                "paymentMethod, paidstatus, details "
-                "FROM payment ORDER BY payment_id DESC"
+            ) in session.fetch_all(
+                f"SELECT {DatabaseColumns.PAYMENT_ID}, {DatabaseColumns.ORDER_ID}, "
+                f"{DatabaseColumns.PAYMENT_DATE_TIME}, {DatabaseColumns.AMOUNT}, "
+                f"{DatabaseColumns.PAYMENT_METHOD}, {DatabaseColumns.PAID_STATUS}, "
+                f"{DatabaseColumns.DETAILS} FROM {DatabaseTables.PAYMENT} "
+                f"ORDER BY {DatabaseColumns.PAYMENT_ID} DESC"
             )
         ]
 
@@ -127,42 +133,22 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
             return
 
         try:
-            content_length = int(self.headers.get("Content-Length", ""))
-        except ValueError:
-            self._send_json(
-                {"status": "error", "message": "Invalid Content-Length header."},
-                400,
+            payload = read_json_object(
+                self,
+                self.MAX_REQUEST_BYTES,
+                request_name="Payment",
             )
-            return
-        if content_length <= 0 or content_length > self.MAX_REQUEST_BYTES:
-            self._send_json(
-                {"status": "error", "message": "Invalid payment request size."},
-                400,
-            )
-            return
-
-        try:
-            payload = json.loads(self.rfile.read(content_length))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            self._send_json(
-                {"status": "error", "message": "Request body must be valid JSON."},
-                400,
-            )
-            return
-        if not isinstance(payload, dict):
-            self._send_json(
-                {"status": "error", "message": "Payment request must be an object."},
-                400,
-            )
+        except HTTPRequestError as error:
+            self._send_json({"status": "error", "message": str(error)}, error.status_code)
             return
 
         try:
             order_id = payload.get("order_id")
-            with closing(sqlite3.connect(DB_PATH)) as connection:
-                order = connection.execute(
-                    "SELECT totalAmount FROM orders WHERE order_id = ?",
-                    (order_id,),
-                ).fetchone()
+            order = _database().fetch_one(
+                f"SELECT {DatabaseColumns.TOTAL_AMOUNT} FROM {DatabaseTables.ORDERS} "
+                f"WHERE {DatabaseColumns.ORDER_ID} = ?",
+                (order_id,),
+            )
         except (sqlite3.Error, TypeError, ValueError):
             self._send_json(
                 {"status": "error", "paid": False, "message": "Invalid order ID."},
@@ -181,15 +167,12 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
             None,
             order_id,
             order[0],
-            "Credit Card",
+            PaymentMethod.CREDIT_CARD.value,
         )
-        card_number = payload.get("card_number")
-        expiration_date = payload.get("expiration_date")
-        cvv = payload.get("cvv")
         payment.processPayment(
-            card_number if type(card_number) is str else "",
-            expiration_date if type(expiration_date) is str else "",
-            cvv if type(cvv) is str else "",
+            string_value(payload, "card_number"),
+            string_value(payload, "expiration_date"),
+            string_value(payload, "cvv"),
         )
 
         self._send_json(
@@ -204,7 +187,7 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
                     ),
                     "amount": payment.amount,
                     "payment_method": payment.paymentMethod,
-                    "paid_status": payment.paidStatus == "Paid",
+                    "paid_status": payment.paidStatus == PaymentStatus.PAID,
                     "details": payment.details,
                 },
             },
@@ -213,44 +196,54 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
 
     def _create_sample_order(self) -> None:
         try:
-            with closing(sqlite3.connect(DB_PATH)) as connection:
-                customer = connection.execute(
-                    "SELECT customer_id FROM customer WHERE email = ?",
+            with _database().transaction() as connection:
+                customer = connection.fetch_one(
+                    f"SELECT {DatabaseColumns.CUSTOMER_ID} "
+                    f"FROM {DatabaseTables.CUSTOMER} "
+                    f"WHERE {DatabaseColumns.EMAIL} = ?",
                     (self.DEMO_CUSTOMER_EMAIL,),
-                ).fetchone()
+                )
                 if customer is None:
-                    cursor = connection.execute(
-                        "INSERT INTO customer (name, email) VALUES (?, ?)",
+                    result = connection.execute(
+                        f"INSERT INTO {DatabaseTables.CUSTOMER} "
+                        f"({DatabaseColumns.NAME}, {DatabaseColumns.EMAIL}) "
+                        "VALUES (?, ?)",
                         ("Local Payment Demo", self.DEMO_CUSTOMER_EMAIL),
                     )
-                    customer_id = cursor.lastrowid
+                    customer_id = result.lastrowid
                 else:
                     customer_id = customer[0]
 
-                order = connection.execute(
-                    "SELECT o.order_id, o.orderDateTime, o.totalAmount "
-                    "FROM orders o WHERE o.customer_id = ? "
-                    "AND NOT EXISTS ("
-                    "SELECT 1 FROM payment p "
-                    "WHERE p.order_id = o.order_id AND p.paidstatus = 1"
-                    ") ORDER BY o.order_id DESC LIMIT 1",
+                order = connection.fetch_one(
+                    f"SELECT o.{DatabaseColumns.ORDER_ID}, "
+                    f"o.{DatabaseColumns.ORDER_DATE_TIME}, "
+                    f"o.{DatabaseColumns.TOTAL_AMOUNT} "
+                    f"FROM {DatabaseTables.ORDERS} o "
+                    f"WHERE o.{DatabaseColumns.CUSTOMER_ID} = ? "
+                    f"AND NOT EXISTS (SELECT 1 FROM {DatabaseTables.PAYMENT} p "
+                    f"WHERE p.{DatabaseColumns.ORDER_ID} = o.{DatabaseColumns.ORDER_ID} "
+                    f"AND p.{DatabaseColumns.PAID_STATUS} = 1) "
+                    f"ORDER BY o.{DatabaseColumns.ORDER_ID} DESC LIMIT 1",
                     (customer_id,),
-                ).fetchone()
+                )
 
                 if order is None:
                     order_date = datetime.now().isoformat(timespec="seconds")
-                    cursor = connection.execute(
-                        "INSERT INTO orders (customer_id, orderDateTime, totalAmount) "
+                    result = connection.execute(
+                        f"INSERT INTO {DatabaseTables.ORDERS} "
+                        f"({DatabaseColumns.CUSTOMER_ID}, "
+                        f"{DatabaseColumns.ORDER_DATE_TIME}, "
+                        f"{DatabaseColumns.TOTAL_AMOUNT}) "
                         "VALUES (?, ?, ?)",
                         (customer_id, order_date, self.DEMO_ORDER_AMOUNT),
                     )
                     order = (
-                        cursor.lastrowid,
+                        result.lastrowid,
                         order_date,
                         self.DEMO_ORDER_AMOUNT,
                     )
-                connection.commit()
-        except sqlite3.Error:
+        except sqlite3.Error as error:
+            logger.error("Could not create a sample order: %s", error)
             self._send_json(
                 {"status": "error", "message": "Could not create a sample order."},
                 500,
@@ -275,6 +268,7 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
             response = get_database_status()
             status_code = 200
         except (OSError, sqlite3.Error) as error:
+            logger.error("Could not read database status: %s", error)
             response = {
                 "status": "error",
                 "message": str(error),
@@ -287,7 +281,8 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
         try:
             response = get_dashboard_data()
             status_code = 200
-        except (OSError, sqlite3.Error):
+        except (OSError, sqlite3.Error) as error:
+            logger.error("Could not read dashboard data from SQLite: %s", error)
             response = {
                 "status": "error",
                 "message": "Could not read dashboard data from SQLite.",
@@ -297,13 +292,9 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
         self._send_json(response, status_code)
 
     def _send_json(self, response: dict[str, object], status_code: int) -> None:
-        encoded_response = json.dumps(response).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(encoded_response)))
-        self.end_headers()
-        self.wfile.write(encoded_response)
+        send_json(self, response, status_code)
 
 
 def create_server(host: str, port: int) -> ThreadingHTTPServer:
+    configure_backend_logging()
     return ThreadingHTTPServer((host, port), LocalTestRequestHandler)

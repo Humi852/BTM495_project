@@ -19,6 +19,4 @@ class User(ABC):
     @property
     @abstractmethod
     def isAdmin(self) -> bool:
-        raise NotImplementedError
-
-user = User
+        ...

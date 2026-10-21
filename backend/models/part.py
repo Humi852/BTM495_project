@@ -19,6 +19,3 @@ class Part(Item):
 
     def checkStock(self) -> int:
         return self.stockQuantity
-
-
-part = Part

@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from backend.apis.local_test import create_server
+from backend.apis.local_website_api import create_server
 
 
 class LocalDryRunWebsiteTests(unittest.TestCase):
@@ -38,7 +38,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
             connection.commit()
 
         self.database_patch = patch(
-            "backend.apis.local_test.DB_PATH",
+            "backend.apis.local_website_api.DB_PATH",
             self.database_path,
         )
         self.database_patch.start()
@@ -78,6 +78,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 {"name": "orders", "rows": 1},
                 {"name": "payment", "rows": 0},
                 {"name": "sample", "rows": 2},
+                {"name": "shopping_cart", "rows": 0},
             ],
         )
 
@@ -92,7 +93,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         with urlopen(page_url) as response:
             self.assertEqual(response.status, 200)
             page = response.read().decode("utf-8")
-        with urlopen(self.base_url + "/app.js") as response:
+        with urlopen(self.base_url + "/local_website.js") as response:
             script = response.read().decode("utf-8")
 
         self.assertIn("Local dry-run website", page)

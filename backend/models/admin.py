@@ -1,6 +1,5 @@
 from backend.models.user import User
 
-
 # Admin is a role-specific User with its own database identifier.
 class Admin(User):
     def __init__(

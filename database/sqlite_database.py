@@ -1,13 +1,13 @@
-import sqlite3
-from contextlib import closing
 from pathlib import Path
+
+from backend.utils.sqlite import SQLiteQuery
 
 DB_PATH = Path(__file__).with_name("lpvr.db") # absolute path to the bike shop database file
 
 # The main function to initialize the SQLite database using the schema.sql file
 def initialize_database(database_path: str | Path = DB_PATH) -> None:
-    with closing(sqlite3.connect(database_path)) as connection:
-        connection.execute("PRAGMA foreign_keys = ON")
+    database = SQLiteQuery(database_path)
+    with database.session() as connection:
         connection.executescript(
             Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
         )
