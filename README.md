@@ -18,17 +18,22 @@ SQLite provides the database. Its tables are defined in
 ## Project structure
 
 - `backend/models/` contains Python classes for the project concepts, such as
-  users, orders, items, and payments.
-- `backend/services/` contains service logic, including the inventory and
-  payment classes.
+  users, events, orders, carts, items, and payments.
+- `backend/services/` contains service logic for user profiles, inventory, and
+  payments. Inventory management operates on the domain types in
+  `backend/models/`.
 - `backend/apis/local_test.py` serves the local website and its API.
 - `database/schema.sql` defines the SQLite tables.
 - `database/db.py` initializes the database.
 - `frontend/` contains the website HTML, CSS, and JavaScript.
-- `tests/` contains the website tests and `tests/unitTests/` contains the
-  payment unit tests and manual cash-payment demo.
+- `tests/` contains the website tests. `tests/unitTests/` contains the payment
+  and user-profile unit tests, domain-model tests, and the manual cash-payment
+  demo.
 - `main.py` runs the command-line payment example.
 - `testInLocalWebPage.py` starts the local website.
+
+User profile creation is supported through `UserService`. Password handling
+and authentication are outside the current application scope.
 
 ## Run the Python payment example
 
@@ -82,7 +87,8 @@ Run the local website tests:
 python -m unittest discover -s tests -p "test_localDryrunWebsite.py"
 ```
 
-Run the payment unit tests and the admin cash-payment demo:
+Run the payment, user-profile, and domain-model unit tests, followed by the
+admin cash-payment demo:
 
 ```powershell
 python tests\unitTests\runAllUnitTests.py

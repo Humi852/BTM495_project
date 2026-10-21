@@ -1,6 +1,6 @@
 # Connect the database and backend.
 
-from backend.models.user import user as User
+from backend.models.user import User
 from backend.services.payment import Payment
 from database.db import initialize_database
 
@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     print("Name:", user1.name)
     print("Email:", user1.email)
-    print("User ID:", user1.userID)
+    print("User ID:", user1.userID if user1.userID is not None else "Not saved")
 
 if __name__ == "__main__":
 
