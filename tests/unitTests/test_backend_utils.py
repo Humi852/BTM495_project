@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import sys
 import unittest
 from pathlib import Path
@@ -8,6 +9,7 @@ from tempfile import TemporaryDirectory
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.utils.http import HTTPRequestError, read_json_object, send_json
+from backend.utils.logger import BackendFormatter, http_status_label
 from backend.utils.sqlite import (
     SQLColumnDefinition,
     SQLComparison,
@@ -124,6 +126,18 @@ class SQLiteQueryTests(unittest.TestCase):
         self.assertEqual(deleted.rowcount, 1)
         self.assertEqual(self.database.count("record"), 0)
 
+    def test_sql_logs_are_pretty_and_redact_bound_values(self) -> None:
+        with self.assertLogs("backend.utils.sqlite", level="INFO") as logs:
+            self.database.insert(
+                "record",
+                {"value": "private-value"},
+            )
+
+        output = "\n".join(logs.output)
+        self.assertIn('INSERT INTO "record" ("value")\n  VALUES (?)', output)
+        self.assertIn("parameters: 1 value(s) redacted", output)
+        self.assertNotIn("private-value", output)
+
     def test_query_builder_handles_in_null_order_and_parameter_order(self) -> None:
         statement, parameters = SQLBuilder.select(
             "record",
@@ -182,6 +196,91 @@ class ValidationHelperTests(unittest.TestCase):
 
 
 class HTTPHelperTests(unittest.TestCase):
+    def test_warning_and_error_logs_use_terminal_colors(self) -> None:
+        class TerminalStream(io.StringIO):
+            def isatty(self) -> bool:
+                return True
+
+        formatter = BackendFormatter(TerminalStream())
+        warning = logging.LogRecord(
+            "backend.test",
+            logging.WARNING,
+            __file__,
+            1,
+            "warning",
+            (),
+            None,
+        )
+        error = logging.LogRecord(
+            "backend.test",
+            logging.ERROR,
+            __file__,
+            2,
+            "error",
+            (),
+            None,
+        )
+
+        self.assertIn("\033[33m", formatter.format(warning))
+        self.assertIn("\033[31m", formatter.format(error))
+
+    def test_http_logs_human_summaries_without_payload_values(self) -> None:
+        handler = FakeRequestHandler(
+            b'{"email":"person@example.com","password":"private-password"}'
+        )
+
+        with self.assertLogs("backend.utils.http", level="INFO") as logs:
+            payload = read_json_object(handler, 100, request_name="Login")
+            send_json(
+                handler,
+                {"status": "ok", "name": "Private Name"},
+            )
+
+        self.assertEqual(payload["email"], "person@example.com")
+        output = "\n".join(logs.output)
+        self.assertIn("Login input received (email supplied, password supplied)", output)
+        self.assertIn("Backend output: Request completed: OK.", output)
+        self.assertNotIn("{", output)
+        self.assertNotIn("person@example.com", output)
+        self.assertNotIn("private-password", output)
+        self.assertNotIn("Private Name", output)
+
+    def test_http_output_summarizes_dashboard_orders(self) -> None:
+        handler = FakeRequestHandler(b"")
+
+        with self.assertLogs("backend.utils.http", level="INFO") as logs:
+            send_json(
+                handler,
+                {
+                    "status": "ok",
+                    "database": "lpvr.db",
+                    "tables": [],
+                    "orders": [
+                        {
+                            "order_id": 9,
+                            "order_date": "2026-10-21",
+                            "total_amount": 50.0,
+                            "paid": False,
+                        }
+                    ],
+                    "payments": [],
+                },
+            )
+
+        output = "\n".join(logs.output)
+        self.assertIn(
+            "Dashboard loaded: 1 order, $50.00 total, 0 payment record(s). "
+            "Orders: #9 $50.00, 2026-10-21, unpaid.",
+            output,
+        )
+        self.assertNotIn("{", output)
+
+    def test_http_status_labels_explain_cache_responses(self) -> None:
+        self.assertEqual(http_status_label(200), "OK")
+        self.assertEqual(http_status_label(304), "Not Modified (browser cache)")
+        self.assertEqual(http_status_label(404), "Not Found")
+        self.assertEqual(http_status_label(599), "Unknown status")
+
     def test_reads_json_object_and_rejects_non_objects(self) -> None:
         handler = FakeRequestHandler(b'{"order_id": 1}')
         self.assertEqual(read_json_object(handler, 100), {"order_id": 1})

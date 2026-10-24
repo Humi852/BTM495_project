@@ -81,6 +81,21 @@ http://localhost:8765/
 ```
 
 The page shows the SQLite table names, orders, and existing payment history.
+Use **Test profile login** with the local demo credentials
+`login@example.com` / `1234`, or with another existing Admin or Customer
+account. The launcher creates the demo Customer account if it is missing and
+does not replace an existing account with that email. This deliberately weak
+password is for the local dry-run only; keep the server bound to loopback and
+do not reuse it elsewhere. The form reports whether the credentials match;
+it does not create a persistent signed-in session.
+
+The server console reports startup steps (database initialization and server
+readiness), concise request durations, and human-readable summaries of backend
+inputs, outputs, and SQL query results. It does not print raw JSON payloads or
+bound SQL values. HTTP status codes are shown as readable descriptions, and
+warning/error messages are colored in terminals that support ANSI colors.
+Verbose default HTTP access lines are suppressed.
+
 Select **Make a payment** to open the payment form. If there is no unpaid
 order, the website creates a $50 sample order in SQLite so that you can try
 the form. The sample order remains in the database.

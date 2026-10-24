@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -8,6 +9,25 @@ from typing import Generator, Mapping, Sequence
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _format_sql(statement: str) -> str:
+    clause_pattern = re.compile(
+        r"\s+(FROM|WHERE|ORDER BY|LIMIT|VALUES|SET|AND|OR)\s+",
+        re.IGNORECASE,
+    )
+    return clause_pattern.sub(
+        lambda match: f"\n  {match.group(1).upper()} ",
+        statement.strip(),
+    )
+
+
+def _log_sql(statement: str, parameters: Sequence[object] = ()) -> None:
+    logger.info(
+        "SQL query:\n%s\n  parameters: %d value(s) redacted",
+        _format_sql(statement),
+        len(parameters),
+    )
 
 
 def quote_identifier(identifier: str) -> str:
@@ -230,18 +250,31 @@ class SQLiteSession:
     def execute(
         self, statement: str, parameters: Sequence[object] = ()
     ) -> ExecutionResult:
+        _log_sql(statement, parameters)
         cursor = self._connection.execute(statement, parameters)
-        return ExecutionResult(cursor.lastrowid, cursor.rowcount)
+        result = ExecutionResult(cursor.lastrowid, cursor.rowcount)
+        logger.info(
+            "SQL output: affected_rows=%d last_row_id=%s",
+            result.rowcount,
+            result.lastrowid,
+        )
+        return result
 
     def fetch_one(
         self, statement: str, parameters: Sequence[object] = ()
     ) -> tuple[object, ...] | None:
-        return self._connection.execute(statement, parameters).fetchone()
+        _log_sql(statement, parameters)
+        result = self._connection.execute(statement, parameters).fetchone()
+        logger.info("SQL output: %s", "one row" if result is not None else "no rows")
+        return result
 
     def fetch_all(
         self, statement: str, parameters: Sequence[object] = ()
     ) -> list[tuple[object, ...]]:
-        return self._connection.execute(statement, parameters).fetchall()
+        _log_sql(statement, parameters)
+        rows = self._connection.execute(statement, parameters).fetchall()
+        logger.info("SQL output: %d row(s)", len(rows))
+        return rows
 
     def select(
         self,
@@ -305,31 +338,38 @@ class SQLiteSession:
         *,
         if_not_exists: bool = False,
     ) -> None:
-        self._connection.execute(
-            SQLBuilder.create_table(
-                table,
-                columns,
-                if_not_exists=if_not_exists,
-            )
+        statement = SQLBuilder.create_table(
+            table,
+            columns,
+            if_not_exists=if_not_exists,
         )
+        _log_sql(statement)
+        self._connection.execute(statement)
+        logger.info("SQL output: table created")
 
     def list_tables(self) -> list[str]:
-        rows = self._connection.execute(
+        statement = (
             "SELECT name FROM sqlite_master "
             "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
             "ORDER BY name"
-        ).fetchall()
+        )
+        rows = self.fetch_all(statement)
         return [row[0] for row in rows]
 
     def count(self, table: str) -> int:
         statement = f"SELECT COUNT(*) FROM {quote_identifier(table)}"
-        return self._connection.execute(statement).fetchone()[0]
+        row = self.fetch_one(statement)
+        if row is None or type(row[0]) is not int:
+            raise RuntimeError("SQLite COUNT query did not return an integer.")
+        return row[0]
 
     def rollback(self) -> None:
         self._connection.rollback()
 
     def executescript(self, script: str) -> None:
+        logger.info("SQL script: executing %d characters", len(script))
         self._connection.executescript(script)
+        logger.info("SQL output: script executed")
 
 
 class SQLiteQuery:
@@ -361,7 +401,6 @@ class SQLiteQuery:
         except sqlite3.Error:
             if connection is not None and transaction:
                 connection.rollback()
-            logger.exception("SQLite session failed for %s", self.database_path)
             raise
         except BaseException:
             if connection is not None and transaction:

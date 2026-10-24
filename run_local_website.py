@@ -1,11 +1,13 @@
 import argparse
 import webbrowser
 
-from backend.apis.local_website_api import create_server
+from backend.apis.local_website_api import create_server, ensure_local_demo_login
+from backend.utils.logger import configure_backend_logging, get_logger
 from database.sqlite_database import initialize_database
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
+logger = get_logger(__name__)
 
 
 def open_browser(url: str) -> None:
@@ -24,21 +26,34 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    initialize_database()
-    with create_server(args.host, args.port) as server:
-        host, port = server.server_address[:2]
-        display_host = "localhost" if host in ("127.0.0.1", "::1") else host
-        url = f"http://{display_host}:{port}/"
+    configure_backend_logging()
+    logger.info("Starting local integration server.")
+    try:
+        logger.info("Initializing SQLite database schema.")
+        initialize_database()
+        logger.info("Database initialization complete.")
+        ensure_local_demo_login()
+        logger.info("Local demo login is ready (login@example.com).")
 
-        print(f"Local integration test is running at {url}")
-        print("Press Ctrl+C to stop.")
-        if not args.no_browser:
-            open_browser(url)
+        logger.info("Starting HTTP server on %s:%d.", args.host, args.port)
+        with create_server(args.host, args.port) as server:
+            host, port = server.server_address[:2]
+            display_host = "localhost" if host in ("127.0.0.1", "::1") else host
+            url = f"http://{display_host}:{port}/"
 
-        try:
-            server.serve_forever()
-        except KeyboardInterrupt:
-            print("\nLocal integration test stopped.")
+            logger.info("Server ready at %s.", url)
+            logger.info("Press Ctrl+C to stop the server.")
+            if not args.no_browser:
+                logger.info("Opening the local website in your browser.")
+                open_browser(url)
+
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                logger.info("Server stopped by user.")
+    except Exception:
+        logger.exception("Local integration server failed.")
+        raise
 
 
 if __name__ == "__main__":

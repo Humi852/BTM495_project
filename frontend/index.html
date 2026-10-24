@@ -18,6 +18,21 @@
         <span id="overall-status" class="status status-pending">Loading…</span>
       </header>
 
+      <section class="card" aria-labelledby="login-title">
+        <h2 id="login-title">Test profile login</h2>
+        <p class="muted">Check an existing Admin or Customer email and password using the profile login method.</p>
+        <p class="muted">Local demo credentials: <code>login@example.com</code> / <code>1234</code></p>
+        <form id="login-form">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="email" autocomplete="username" required>
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+          <p id="login-message" class="muted" role="status" aria-live="polite"></p>
+          <p id="login-error" class="error" role="alert" hidden></p>
+          <button id="login-button" type="submit">Test login</button>
+        </form>
+      </section>
+
       <section class="card">
         <div class="card-heading">
           <div>

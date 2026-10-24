@@ -202,6 +202,7 @@ dialog::backdrop {
   margin-bottom: 6px;
 }
 
+#login-form label,
 #payment-form label {
   display: block;
   margin: 18px 0 6px;
@@ -209,6 +210,7 @@ dialog::backdrop {
   font-weight: 600;
 }
 
+#login-form input,
 #payment-form input,
 #payment-form select {
   width: 100%;
@@ -221,6 +223,7 @@ dialog::backdrop {
   font: inherit;
 }
 
+#login-form input:focus,
 #payment-form input:focus,
 #payment-form select:focus {
   outline: 3px solid #97baff;

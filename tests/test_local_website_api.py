@@ -12,7 +12,9 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from backend.apis.local_website_api import create_server
+from backend.apis.local_website_api import create_server, ensure_local_demo_login
+from backend.apis.profile_api import ManageProfile
+from backend.models.customer import Customer
 
 
 class LocalDryRunWebsiteTests(unittest.TestCase):
@@ -97,15 +99,96 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
             script = response.read().decode("utf-8")
 
         self.assertIn("Local dry-run website", page)
+        self.assertIn('id="login-form"', page)
+        self.assertIn("login@example.com", page)
+        self.assertIn("1234", page)
         self.assertIn('id="payment-dialog"', page)
         self.assertIn('id="payment-history"', page)
         self.assertIn("/api/dashboard", script)
+        self.assertIn("/api/login", script)
         self.assertIn("/api/payments", script)
 
+    def test_login_endpoint_calls_profile_login_and_returns_role(self) -> None:
+        ManageProfile(self.database_path).createAccount(
+            Customer(name="Login Test", email="login@example.com"),
+            "test-password",
+        )
+
+        with self.assertLogs("backend", level="INFO") as logs:
+            with self._post_login(
+                {"email": "login@example.com", "password": "test-password"}
+            ) as response:
+                self.assertEqual(response.status, 200)
+                payload = json.load(response)
+
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(
+            payload["user"],
+            {"name": "Login Test", "is_admin": False},
+        )
+        log_output = "\n".join(logs.output)
+        self.assertIn(
+            "Login input received (email supplied, password supplied)",
+            log_output,
+        )
+        self.assertIn("Login output: successful authentication", log_output)
+        self.assertNotIn("test-password", log_output)
+        self.assertNotIn("login@example.com", log_output)
+
+    def test_local_demo_login_is_created_idempotently(self) -> None:
+        ensure_local_demo_login(self.database_path)
+        ensure_local_demo_login(self.database_path)
+
+        user = ManageProfile(self.database_path).login(
+            "login@example.com",
+            "1234",
+        )
+        self.assertIsNotNone(user)
+        assert user is not None
+        self.assertEqual(user.name, "Local Dry-Run")
+        self.assertFalse(user.isAdmin)
+
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            self.assertEqual(
+                connection.execute(
+                    "SELECT COUNT(*) FROM customer WHERE email = ?",
+                    ("login@example.com",),
+                ).fetchone()[0],
+                1,
+            )
+
+    def test_local_demo_login_does_not_replace_existing_account(self) -> None:
+        profile = ManageProfile(self.database_path)
+        profile.createAccount(
+            Customer(name="Existing Login", email="login@example.com"),
+            "existing-password",
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "already in use"):
+            ensure_local_demo_login(self.database_path)
+
+        self.assertIsNotNone(
+            profile.login("login@example.com", "existing-password")
+        )
+
+    def test_login_endpoint_rejects_incorrect_credentials(self) -> None:
+        with self.assertLogs("backend", level="WARNING") as logs:
+            with self._post_login(
+                {"email": "missing@example.com", "password": "wrong-password"}
+            ) as response:
+                self.assertEqual(response.status, 401)
+                payload = json.load(response)
+
+        self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["message"], "Email or password is incorrect.")
+        self.assertIn("Login output: rejected credentials", "\n".join(logs.output))
+        self.assertNotIn("wrong-password", "\n".join(logs.output))
+
     def test_dashboard_shows_orders_and_payment_history(self) -> None:
-        with urlopen(self.base_url + "/api/dashboard") as response:
-            self.assertEqual(response.status, 200)
-            payload = json.load(response)
+        with self.assertLogs("backend", level="INFO") as logs:
+            with urlopen(self.base_url + "/api/dashboard") as response:
+                self.assertEqual(response.status, 200)
+                payload = json.load(response)
 
         self.assertEqual(
             payload["orders"],
@@ -119,6 +202,18 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
             ],
         )
         self.assertEqual(payload["payments"], [])
+        log_output = "\n".join(logs.output)
+        self.assertIn("SQL query:\nSELECT", log_output)
+        self.assertIn(
+            "Backend output: Dashboard loaded: 1 order, $42.50 total, "
+            "0 payment record(s). Orders: #101 $42.50, date unknown, unpaid.",
+            log_output,
+        )
+        self.assertRegex(
+            log_output,
+            r"HTTP GET /api/dashboard -> OK in \d+\.\d+ ms",
+        )
+        self.assertNotIn("127.0.0.1 - - [", log_output)
 
     def test_dashboard_marks_paid_orders_and_lists_payments(self) -> None:
         with closing(sqlite3.connect(self.database_path)) as connection:
@@ -182,6 +277,18 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
     def _post_payment(self, payload: dict[str, object]):
         request = Request(
             self.base_url + "/api/payments",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            return urlopen(request)
+        except HTTPError as error:
+            return error
+
+    def _post_login(self, payload: dict[str, object]):
+        request = Request(
+            self.base_url + "/api/login",
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
