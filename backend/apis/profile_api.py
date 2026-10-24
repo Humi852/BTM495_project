@@ -14,7 +14,7 @@ from backend.models.customer import Customer
 from backend.models.user import User
 from backend.utils.constants import DatabaseColumns, DatabaseTables
 from backend.utils.response import Response
-from backend.utils.sqlite import SQLiteQuery
+from backend.utils.sqlite import SQLiteQuery, SQLCondition
 from backend.utils.validators import is_valid_email, is_valid_password, is_valid_profile
 from database.sqlite_database import DB_PATH
 
@@ -37,19 +37,15 @@ class ManageProfile:
 
     def _insertUser(self, user: User) -> User:
         role_table, _, _ = self._roleDetails(user)
-        result = self.database.execute(
-            f"INSERT INTO {role_table} "
-            f"({DatabaseColumns.NAME}, {DatabaseColumns.EMAIL}, "
-            f"{DatabaseColumns.PHONE}, {DatabaseColumns.ADDRESS}, "
-            f"{DatabaseColumns.PASSWORD_HASH}) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (
-                user.name,
-                user.email,
-                user.phone,
-                user.address,
-                user.password_hash,
-            ),
+        result = self.database.insert(
+            role_table,
+            {
+                DatabaseColumns.NAME: user.name,
+                DatabaseColumns.EMAIL: user.email,
+                DatabaseColumns.PHONE: user.phone,
+                DatabaseColumns.ADDRESS: user.address,
+                DatabaseColumns.PASSWORD_HASH: user.password_hash,
+            },
         )
         if isinstance(user, Admin):
             user.adminID = result.lastrowid
@@ -67,10 +63,10 @@ class ManageProfile:
         matches: list[tuple[type[User], int]] = []
         for user_type in (Admin, Customer):
             role_table, id_column, _ = self._roleDetailsForType(user_type)
-            row = self.database.fetch_one(
-                f"SELECT {id_column}, {DatabaseColumns.PASSWORD_HASH} "
-                f"FROM {role_table} WHERE {DatabaseColumns.EMAIL} = ?",
-                (email,),
+            row = self.database.select_one(
+                role_table,
+                (id_column, DatabaseColumns.PASSWORD_HASH),
+                where=(SQLCondition(DatabaseColumns.EMAIL, email),),
             )
             if row is not None and self._verifyPassword(password, row[1]):
                 matches.append((user_type, row[0]))
@@ -81,12 +77,17 @@ class ManageProfile:
 
     def _getUser(self, roleID: int, userType: type[User]) -> User | None:
         role_table, id_column, _ = self._roleDetailsForType(userType)
-        row = self.database.fetch_one(
-            f"SELECT {id_column}, {DatabaseColumns.NAME}, {DatabaseColumns.EMAIL}, "
-            f"{DatabaseColumns.PHONE}, {DatabaseColumns.ADDRESS}, "
-            f"{DatabaseColumns.PASSWORD_HASH} "
-            f"FROM {role_table} WHERE {id_column} = ?",
-            (roleID,),
+        row = self.database.select_one(
+            role_table,
+            (
+                id_column,
+                DatabaseColumns.NAME,
+                DatabaseColumns.EMAIL,
+                DatabaseColumns.PHONE,
+                DatabaseColumns.ADDRESS,
+                DatabaseColumns.PASSWORD_HASH,
+            ),
+            where=(SQLCondition(id_column, roleID),),
         )
 
         if row is None:
@@ -109,19 +110,16 @@ class ManageProfile:
         if user_id is None:
             return False
         self._validateProfile(user)
-        result = self.database.execute(
-            f"UPDATE {role_table} SET {DatabaseColumns.NAME} = ?, "
-            f"{DatabaseColumns.EMAIL} = ?, {DatabaseColumns.PHONE} = ?, "
-            f"{DatabaseColumns.ADDRESS} = ?, "
-            f"{DatabaseColumns.PASSWORD_HASH} = ? WHERE {id_column} = ?",
-            (
-                user.name,
-                user.email,
-                user.phone,
-                user.address,
-                user.password_hash,
-                user_id,
-            ),
+        result = self.database.update(
+            role_table,
+            {
+                DatabaseColumns.NAME: user.name,
+                DatabaseColumns.EMAIL: user.email,
+                DatabaseColumns.PHONE: user.phone,
+                DatabaseColumns.ADDRESS: user.address,
+                DatabaseColumns.PASSWORD_HASH: user.password_hash,
+            },
+            where=(SQLCondition(id_column, user_id),),
         )
         return result.rowcount > 0
 

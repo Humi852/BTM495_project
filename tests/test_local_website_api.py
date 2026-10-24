@@ -120,6 +120,36 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         )
         self.assertEqual(payload["payments"], [])
 
+    def test_dashboard_marks_paid_orders_and_lists_payments(self) -> None:
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            connection.execute(
+                "INSERT INTO payment "
+                "(order_id, paymentDateTime, amount, paymentMethod, paidstatus, details) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (101, "2025-01-01 12:00:00", 42.5, "Credit Card", 1, "Paid"),
+            )
+            connection.commit()
+
+        with urlopen(self.base_url + "/api/dashboard") as response:
+            self.assertEqual(response.status, 200)
+            payload = json.load(response)
+
+        self.assertTrue(payload["orders"][0]["paid"])
+        self.assertEqual(
+            payload["payments"],
+            [
+                {
+                    "payment_id": 1,
+                    "order_id": 101,
+                    "payment_date": "2025-01-01 12:00:00",
+                    "amount": 42.5,
+                    "payment_method": "Credit Card",
+                    "paid_status": True,
+                    "details": "Paid",
+                }
+            ],
+        )
+
     def test_sample_order_is_created_and_reused_until_paid(self) -> None:
         request = Request(
             self.base_url + "/api/sample-orders",

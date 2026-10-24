@@ -1,6 +1,7 @@
 import json
 import math
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 from backend.models.cart_item import CartItem
@@ -9,7 +10,11 @@ from backend.models.part import Part
 from backend.models.shopping_cart import ShoppingCart
 from backend.utils.constants import DatabaseColumns, DatabaseTables
 from backend.utils.response import Response
-from backend.utils.sqlite import SQLiteQuery, SQLiteSession
+from backend.utils.sqlite import (
+    SQLiteQuery,
+    SQLiteSession,
+    SQLCondition,
+)
 from database.sqlite_database import DB_PATH
 
 
@@ -20,25 +25,29 @@ class ShoppingCartAPI:
     def loadCart(self, customerID: int) -> ShoppingCart:
         cart = ShoppingCart(customerID)
         with self.database.transaction(immediate=True) as database:
-            customer = database.fetch_one(
-                f"SELECT 1 FROM {DatabaseTables.CUSTOMER} "
-                f"WHERE {DatabaseColumns.CUSTOMER_ID} = ?",
-                (customerID,),
+            customer = database.select_one(
+                DatabaseTables.CUSTOMER,
+                (DatabaseColumns.CUSTOMER_ID,),
+                where=(
+                    SQLCondition(DatabaseColumns.CUSTOMER_ID, customerID),
+                ),
             )
             if customer is None:
                 raise ValueError(f"Customer {customerID} does not exist.")
-            stored_cart = database.fetch_one(
-                f"SELECT {DatabaseColumns.ITEMS_JSON} "
-                f"FROM {DatabaseTables.SHOPPING_CART} "
-                f"WHERE {DatabaseColumns.CUSTOMER_ID} = ?",
-                (customerID,),
+            stored_cart = database.select_one(
+                DatabaseTables.SHOPPING_CART,
+                (DatabaseColumns.ITEMS_JSON,),
+                where=(
+                    SQLCondition(DatabaseColumns.CUSTOMER_ID, customerID),
+                ),
             )
             if stored_cart is None:
-                database.execute(
-                    f"INSERT INTO {DatabaseTables.SHOPPING_CART} "
-                    f"({DatabaseColumns.CUSTOMER_ID}, {DatabaseColumns.ITEMS_JSON}) "
-                    "VALUES (?, '[]')",
-                    (customerID,),
+                database.insert(
+                    DatabaseTables.SHOPPING_CART,
+                    {
+                        DatabaseColumns.CUSTOMER_ID: customerID,
+                        DatabaseColumns.ITEMS_JSON: "[]",
+                    },
                 )
                 return cart
             cart.items = self._deserializeItems(database, stored_cart[0])
@@ -51,10 +60,10 @@ class ShoppingCartAPI:
         result = cart.addItem(item, quantity)
         if not result.success:
             return result
-        if self.database.fetch_one(
-            f"SELECT 1 FROM {DatabaseTables.ITEM} "
-            f"WHERE {DatabaseColumns.ITEM_ID} = ?",
-            (item.itemId,),
+        if self.database.select_one(
+            DatabaseTables.ITEM,
+            (DatabaseColumns.ITEM_ID,),
+            where=(SQLCondition(DatabaseColumns.ITEM_ID, item.itemId),),
         ) is None:
             cart.items = previous_items
             return Response.warning("Item not found.")
@@ -81,12 +90,15 @@ class ShoppingCartAPI:
 
     @staticmethod
     def clearInTransaction(database: SQLiteSession, customerID: int) -> None:
-        result = database.execute(
-            f"UPDATE {DatabaseTables.SHOPPING_CART} "
-            f"SET {DatabaseColumns.ITEMS_JSON} = ?, "
-            f"{DatabaseColumns.UPDATED_AT} = datetime('now') "
-            f"WHERE {DatabaseColumns.CUSTOMER_ID} = ?",
-            ("[]", customerID),
+        result = database.update(
+            DatabaseTables.SHOPPING_CART,
+            {
+                DatabaseColumns.ITEMS_JSON: "[]",
+                DatabaseColumns.UPDATED_AT: datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+            },
+            where=(SQLCondition(DatabaseColumns.CUSTOMER_ID, customerID),),
         )
         if result.rowcount != 1:
             raise ValueError(
@@ -97,10 +109,12 @@ class ShoppingCartAPI:
     def verifyInTransaction(
         database: SQLiteSession, cart: ShoppingCart
     ) -> None:
-        stored_cart = database.fetch_one(
-            f"SELECT {DatabaseColumns.ITEMS_JSON} FROM {DatabaseTables.SHOPPING_CART} "
-            f"WHERE {DatabaseColumns.CUSTOMER_ID} = ?",
-            (cart.customerID,),
+        stored_cart = database.select_one(
+            DatabaseTables.SHOPPING_CART,
+            (DatabaseColumns.ITEMS_JSON,),
+            where=(
+                SQLCondition(DatabaseColumns.CUSTOMER_ID, cart.customerID),
+            ),
         )
         if stored_cart is None:
             raise ValueError(
@@ -144,18 +158,23 @@ class ShoppingCartAPI:
         items_json = self.serializeItems(cart)
         with self.database.transaction(immediate=True) as database:
             for item_id in cart.items:
-                if database.fetch_one(
-                    f"SELECT 1 FROM {DatabaseTables.ITEM} "
-                    f"WHERE {DatabaseColumns.ITEM_ID} = ?",
-                    (item_id,),
+                if database.select_one(
+                    DatabaseTables.ITEM,
+                    (DatabaseColumns.ITEM_ID,),
+                    where=(SQLCondition(DatabaseColumns.ITEM_ID, item_id),),
                 ) is None:
                     raise ValueError(f"Item {item_id} does not exist.")
-            result = database.execute(
-                f"UPDATE {DatabaseTables.SHOPPING_CART} "
-                f"SET {DatabaseColumns.ITEMS_JSON} = ?, "
-                f"{DatabaseColumns.UPDATED_AT} = datetime('now') "
-                f"WHERE {DatabaseColumns.CUSTOMER_ID} = ?",
-                (items_json, cart.customerID),
+            result = database.update(
+                DatabaseTables.SHOPPING_CART,
+                {
+                    DatabaseColumns.ITEMS_JSON: items_json,
+                    DatabaseColumns.UPDATED_AT: datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                },
+                where=(
+                    SQLCondition(DatabaseColumns.CUSTOMER_ID, cart.customerID),
+                ),
             )
             if result.rowcount != 1:
                 raise RuntimeError(
@@ -188,11 +207,14 @@ class ShoppingCartAPI:
             item_id = entry["item_id"]
             if item_id in items:
                 raise ValueError("Stored shopping cart contains duplicate items.")
-            row = database.fetch_one(
-                f"SELECT {DatabaseColumns.NAME}, {DatabaseColumns.DESCRIPTION}, "
-                f"{DatabaseColumns.STOCK_QUANTITY} FROM {DatabaseTables.ITEM} "
-                f"WHERE {DatabaseColumns.ITEM_ID} = ?",
-                (item_id,),
+            row = database.select_one(
+                DatabaseTables.ITEM,
+                (
+                    DatabaseColumns.NAME,
+                    DatabaseColumns.DESCRIPTION,
+                    DatabaseColumns.STOCK_QUANTITY,
+                ),
+                where=(SQLCondition(DatabaseColumns.ITEM_ID, item_id),),
             )
             if row is None:
                 raise ValueError(f"Item {item_id} in the cart does not exist.")

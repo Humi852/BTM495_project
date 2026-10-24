@@ -5,10 +5,16 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from backend.models.payment import Payment, PaymentMethod, PaymentStatus
-from backend.utils.constants import DatabaseColumns, DatabaseTables
+from backend.utils.constants import DatabaseColumns, DatabaseTables, DatabaseValues
 from backend.utils.http import HTTPRequestError, read_json_object, send_json
 from backend.utils.logger import configure_backend_logging, get_logger
-from backend.utils.sqlite import SQLiteQuery, SQLiteSession, quote_identifier
+from backend.utils.sqlite import (
+    SQLiteQuery,
+    SQLiteSession,
+    SQLCondition,
+    SQLOrder,
+    SQLSortDirection,
+)
 from backend.utils.validators import string_value
 from database.sqlite_database import DB_PATH
 
@@ -21,17 +27,12 @@ def _database() -> SQLiteQuery:
 
 
 def _get_table_status(database: SQLiteSession) -> list[dict[str, object]]:
-    tables = database.fetch_all(
-        "SELECT name FROM sqlite_master "
-        "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
-        "ORDER BY name",
-    )
+    tables = database.list_tables()
     table_status = []
-    for (table_name,) in tables:
-        row_count = database.fetch_one(
-            f"SELECT COUNT(*) FROM {quote_identifier(table_name)}"
-        )[0]
-        table_status.append({"name": table_name, "rows": row_count})
+    for table_name in tables:
+        table_status.append(
+            {"name": table_name, "rows": database.count(table_name)}
+        )
     return table_status
 
 
@@ -51,22 +52,39 @@ def get_dashboard_data() -> dict[str, object]:
     database = _database()
     with database.session(read_only=True) as session:
         table_status = _get_table_status(session)
+        paid_order_ids = {
+            order_id
+            for (order_id,) in session.select(
+                DatabaseTables.PAYMENT,
+                (DatabaseColumns.ORDER_ID,),
+                where=(
+                    SQLCondition(
+                        DatabaseColumns.PAID_STATUS,
+                        DatabaseValues.PAID_STATUS_PAID,
+                    ),
+                ),
+            )
+        }
         orders = [
             {
                 "order_id": order_id,
                 "order_date": order_date,
                 "total_amount": total_amount,
-                "paid": bool(paid),
+                "paid": order_id in paid_order_ids,
             }
-            for order_id, order_date, total_amount, paid in session.fetch_all(
-                f"SELECT o.{DatabaseColumns.ORDER_ID}, "
-                f"o.{DatabaseColumns.ORDER_DATE_TIME}, "
-                f"o.{DatabaseColumns.TOTAL_AMOUNT}, "
-                f"EXISTS (SELECT 1 FROM {DatabaseTables.PAYMENT} p "
-                f"WHERE p.{DatabaseColumns.ORDER_ID} = o.{DatabaseColumns.ORDER_ID} "
-                f"AND p.{DatabaseColumns.PAID_STATUS} = 1) "
-                f"FROM {DatabaseTables.ORDERS} o "
-                f"ORDER BY o.{DatabaseColumns.ORDER_ID} DESC"
+            for order_id, order_date, total_amount in session.select(
+                DatabaseTables.ORDERS,
+                (
+                    DatabaseColumns.ORDER_ID,
+                    DatabaseColumns.ORDER_DATE_TIME,
+                    DatabaseColumns.TOTAL_AMOUNT,
+                ),
+                order_by=(
+                    SQLOrder(
+                        DatabaseColumns.ORDER_ID,
+                        SQLSortDirection.DESCENDING,
+                    ),
+                ),
             )
         ]
         payments = [
@@ -87,12 +105,23 @@ def get_dashboard_data() -> dict[str, object]:
                 payment_method,
                 paid_status,
                 details,
-            ) in session.fetch_all(
-                f"SELECT {DatabaseColumns.PAYMENT_ID}, {DatabaseColumns.ORDER_ID}, "
-                f"{DatabaseColumns.PAYMENT_DATE_TIME}, {DatabaseColumns.AMOUNT}, "
-                f"{DatabaseColumns.PAYMENT_METHOD}, {DatabaseColumns.PAID_STATUS}, "
-                f"{DatabaseColumns.DETAILS} FROM {DatabaseTables.PAYMENT} "
-                f"ORDER BY {DatabaseColumns.PAYMENT_ID} DESC"
+            ) in session.select(
+                DatabaseTables.PAYMENT,
+                (
+                    DatabaseColumns.PAYMENT_ID,
+                    DatabaseColumns.ORDER_ID,
+                    DatabaseColumns.PAYMENT_DATE_TIME,
+                    DatabaseColumns.AMOUNT,
+                    DatabaseColumns.PAYMENT_METHOD,
+                    DatabaseColumns.PAID_STATUS,
+                    DatabaseColumns.DETAILS,
+                ),
+                order_by=(
+                    SQLOrder(
+                        DatabaseColumns.PAYMENT_ID,
+                        SQLSortDirection.DESCENDING,
+                    ),
+                ),
             )
         ]
 
@@ -144,10 +173,10 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
 
         try:
             order_id = payload.get("order_id")
-            order = _database().fetch_one(
-                f"SELECT {DatabaseColumns.TOTAL_AMOUNT} FROM {DatabaseTables.ORDERS} "
-                f"WHERE {DatabaseColumns.ORDER_ID} = ?",
-                (order_id,),
+            order = _database().select_one(
+                DatabaseTables.ORDERS,
+                (DatabaseColumns.TOTAL_AMOUNT,),
+                where=(SQLCondition(DatabaseColumns.ORDER_ID, order_id),),
             )
         except (sqlite3.Error, TypeError, ValueError):
             self._send_json(
@@ -197,45 +226,76 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
     def _create_sample_order(self) -> None:
         try:
             with _database().transaction() as connection:
-                customer = connection.fetch_one(
-                    f"SELECT {DatabaseColumns.CUSTOMER_ID} "
-                    f"FROM {DatabaseTables.CUSTOMER} "
-                    f"WHERE {DatabaseColumns.EMAIL} = ?",
-                    (self.DEMO_CUSTOMER_EMAIL,),
+                customer = connection.select_one(
+                    DatabaseTables.CUSTOMER,
+                    (DatabaseColumns.CUSTOMER_ID,),
+                    where=(
+                        SQLCondition(
+                            DatabaseColumns.EMAIL,
+                            self.DEMO_CUSTOMER_EMAIL,
+                        ),
+                    ),
                 )
                 if customer is None:
-                    result = connection.execute(
-                        f"INSERT INTO {DatabaseTables.CUSTOMER} "
-                        f"({DatabaseColumns.NAME}, {DatabaseColumns.EMAIL}) "
-                        "VALUES (?, ?)",
-                        ("Local Payment Demo", self.DEMO_CUSTOMER_EMAIL),
+                    result = connection.insert(
+                        DatabaseTables.CUSTOMER,
+                        {
+                            DatabaseColumns.NAME: "Local Payment Demo",
+                            DatabaseColumns.EMAIL: self.DEMO_CUSTOMER_EMAIL,
+                        },
                     )
                     customer_id = result.lastrowid
                 else:
                     customer_id = customer[0]
 
-                order = connection.fetch_one(
-                    f"SELECT o.{DatabaseColumns.ORDER_ID}, "
-                    f"o.{DatabaseColumns.ORDER_DATE_TIME}, "
-                    f"o.{DatabaseColumns.TOTAL_AMOUNT} "
-                    f"FROM {DatabaseTables.ORDERS} o "
-                    f"WHERE o.{DatabaseColumns.CUSTOMER_ID} = ? "
-                    f"AND NOT EXISTS (SELECT 1 FROM {DatabaseTables.PAYMENT} p "
-                    f"WHERE p.{DatabaseColumns.ORDER_ID} = o.{DatabaseColumns.ORDER_ID} "
-                    f"AND p.{DatabaseColumns.PAID_STATUS} = 1) "
-                    f"ORDER BY o.{DatabaseColumns.ORDER_ID} DESC LIMIT 1",
-                    (customer_id,),
+                customer_orders = connection.select(
+                    DatabaseTables.ORDERS,
+                    (
+                        DatabaseColumns.ORDER_ID,
+                        DatabaseColumns.ORDER_DATE_TIME,
+                        DatabaseColumns.TOTAL_AMOUNT,
+                    ),
+                    where=(
+                        SQLCondition(DatabaseColumns.CUSTOMER_ID, customer_id),
+                    ),
+                    order_by=(
+                        SQLOrder(
+                            DatabaseColumns.ORDER_ID,
+                            SQLSortDirection.DESCENDING,
+                        ),
+                    ),
+                )
+                paid_order_ids = {
+                    order_id
+                    for (order_id,) in connection.select(
+                        DatabaseTables.PAYMENT,
+                        (DatabaseColumns.ORDER_ID,),
+                        where=(
+                            SQLCondition(
+                                DatabaseColumns.PAID_STATUS,
+                                DatabaseValues.PAID_STATUS_PAID,
+                            ),
+                        ),
+                    )
+                }
+                order = next(
+                    (
+                        candidate
+                        for candidate in customer_orders
+                        if candidate[0] not in paid_order_ids
+                    ),
+                    None,
                 )
 
                 if order is None:
                     order_date = datetime.now().isoformat(timespec="seconds")
-                    result = connection.execute(
-                        f"INSERT INTO {DatabaseTables.ORDERS} "
-                        f"({DatabaseColumns.CUSTOMER_ID}, "
-                        f"{DatabaseColumns.ORDER_DATE_TIME}, "
-                        f"{DatabaseColumns.TOTAL_AMOUNT}) "
-                        "VALUES (?, ?, ?)",
-                        (customer_id, order_date, self.DEMO_ORDER_AMOUNT),
+                    result = connection.insert(
+                        DatabaseTables.ORDERS,
+                        {
+                            DatabaseColumns.CUSTOMER_ID: customer_id,
+                            DatabaseColumns.ORDER_DATE_TIME: order_date,
+                            DatabaseColumns.TOTAL_AMOUNT: self.DEMO_ORDER_AMOUNT,
+                        },
                     )
                     order = (
                         result.lastrowid,

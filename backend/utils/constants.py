@@ -43,6 +43,10 @@ class DatabaseColumns:
     UPDATED_AT = "updated_at"
 
 
+class DatabaseValues:
+    PAID_STATUS_PAID = 1
+
+
 DATABASE_SCHEMA_COLUMNS = {
     DatabaseTables.ADMIN: (
         DatabaseColumns.ADMIN_ID,
