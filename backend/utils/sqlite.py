@@ -1,5 +1,6 @@
 import re
 import sqlite3
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
@@ -22,11 +23,31 @@ def _format_sql(statement: str) -> str:
     )
 
 
-def _log_sql(statement: str, parameters: Sequence[object] = ()) -> None:
-    logger.info(
-        "SQL query:\n%s\n  parameters: %d value(s) redacted",
-        _format_sql(statement),
-        len(parameters),
+_SQL_MODULE_FILE = Path(__file__).resolve()
+
+
+def _find_caller() -> str:
+    """Return the first caller outside this module as 'Class.method (module)'."""
+    frame = sys._getframe(1)
+    while frame is not None:
+        if Path(frame.f_code.co_filename).resolve() != _SQL_MODULE_FILE:
+            code = frame.f_code
+            name = getattr(code, "co_qualname", code.co_name)
+            return name
+        frame = frame.f_back
+    return "unknown"
+
+
+def _log_sql(
+    statement: str, parameters: Sequence[object], outcome: str
+) -> None:
+    suffix = f" [{len(parameters)} param(s) redacted]" if parameters else ""
+    logger.debug(
+        "%s: %s%s | %s",
+        _find_caller(),
+        " ".join(statement.split()),
+        suffix,
+        outcome,
     )
 
 
@@ -250,30 +271,43 @@ class SQLiteSession:
     def execute(
         self, statement: str, parameters: Sequence[object] = ()
     ) -> ExecutionResult:
-        _log_sql(statement, parameters)
-        cursor = self._connection.execute(statement, parameters)
+        try:
+            cursor = self._connection.execute(statement, parameters)
+        except sqlite3.Error as error:
+            _log_sql(statement, parameters, f"failed: {error}")
+            raise
         result = ExecutionResult(cursor.lastrowid, cursor.rowcount)
-        logger.info(
-            "SQL output: affected_rows=%d last_row_id=%s",
-            result.rowcount,
-            result.lastrowid,
+        _log_sql(
+            statement,
+            parameters,
+            f"found {result.rowcount} row(s) affected (last_row_id={result.lastrowid})",
         )
         return result
 
     def fetch_one(
         self, statement: str, parameters: Sequence[object] = ()
     ) -> tuple[object, ...] | None:
-        _log_sql(statement, parameters)
-        result = self._connection.execute(statement, parameters).fetchone()
-        logger.info("SQL output: %s", "one row" if result is not None else "no rows")
+        try:
+            result = self._connection.execute(statement, parameters).fetchone()
+        except sqlite3.Error as error:
+            _log_sql(statement, parameters, f"failed: {error}")
+            raise
+        _log_sql(
+            statement,
+            parameters,
+            f"found {'1 row' if result is not None else 'no rows'}",
+        )
         return result
 
     def fetch_all(
         self, statement: str, parameters: Sequence[object] = ()
     ) -> list[tuple[object, ...]]:
-        _log_sql(statement, parameters)
-        rows = self._connection.execute(statement, parameters).fetchall()
-        logger.info("SQL output: %d row(s)", len(rows))
+        try:
+            rows = self._connection.execute(statement, parameters).fetchall()
+        except sqlite3.Error as error:
+            _log_sql(statement, parameters, f"failed: {error}")
+            raise
+        _log_sql(statement, parameters, f"found {len(rows)} row(s)")
         return rows
 
     def select(
@@ -343,9 +377,8 @@ class SQLiteSession:
             columns,
             if_not_exists=if_not_exists,
         )
-        _log_sql(statement)
         self._connection.execute(statement)
-        logger.info("SQL output: table created")
+        _log_sql(statement, (), f"created table '{table}'")
 
     def list_tables(self) -> list[str]:
         statement = (
@@ -367,9 +400,10 @@ class SQLiteSession:
         self._connection.rollback()
 
     def executescript(self, script: str) -> None:
-        logger.info("SQL script: executing %d characters", len(script))
         self._connection.executescript(script)
-        logger.info("SQL output: script executed")
+        logger.debug(
+            "%s: executed script (%d characters)", _find_caller(), len(script)
+        )
 
 
 class SQLiteQuery:

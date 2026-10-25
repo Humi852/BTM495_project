@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.utils.http import HTTPRequestError, read_json_object, send_json
-from backend.utils.logger import BackendFormatter, http_status_label
+from backend.utils.logger import BackendFormatter, Color, http_status_label
 from backend.utils.sqlite import (
     SQLColumnDefinition,
     SQLComparison,
@@ -127,16 +127,31 @@ class SQLiteQueryTests(unittest.TestCase):
         self.assertEqual(self.database.count("record"), 0)
 
     def test_sql_logs_are_pretty_and_redact_bound_values(self) -> None:
-        with self.assertLogs("backend.utils.sqlite", level="INFO") as logs:
+        with self.assertLogs("backend.utils.sqlite", level="DEBUG") as logs:
             self.database.insert(
                 "record",
                 {"value": "private-value"},
             )
 
         output = "\n".join(logs.output)
-        self.assertIn('INSERT INTO "record" ("value")\n  VALUES (?)', output)
-        self.assertIn("parameters: 1 value(s) redacted", output)
+        self.assertIn('INSERT INTO "record" ("value") VALUES (?)', output)
+        self.assertIn("1 param(s) redacted", output)
         self.assertNotIn("private-value", output)
+
+    def test_sql_logs_name_the_caller(self) -> None:
+        with self.assertLogs("backend.utils.sqlite", level="DEBUG") as logs:
+            self.database.select_one(
+                "record",
+                ("value",),
+                where=(SQLCondition("value", "x"),),
+            )
+
+        output = "\n".join(logs.output)
+        self.assertIn(
+            "SQLiteQueryTests.test_sql_logs_name_the_caller: SELECT",
+            output,
+        )
+        self.assertIn("| found no rows", output)
 
     def test_query_builder_handles_in_null_order_and_parameter_order(self) -> None:
         statement, parameters = SQLBuilder.select(
@@ -221,8 +236,8 @@ class HTTPHelperTests(unittest.TestCase):
             None,
         )
 
-        self.assertIn("\033[33m", formatter.format(warning))
-        self.assertIn("\033[31m", formatter.format(error))
+        self.assertIn(Color.YELLOW, formatter.format(warning))
+        self.assertIn(Color.RED, formatter.format(error))
 
     def test_http_logs_human_summaries_without_payload_values(self) -> None:
         handler = FakeRequestHandler(

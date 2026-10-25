@@ -187,7 +187,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         self.assertNotIn("wrong-password", "\n".join(logs.output))
 
     def test_dashboard_shows_orders_and_payment_history(self) -> None:
-        with self.assertLogs("backend", level="INFO") as logs:
+        with self.assertLogs("backend", level="DEBUG") as logs:
             with urlopen(self.base_url + "/api/dashboard") as response:
                 self.assertEqual(response.status, 200)
                 payload = json.load(response)
@@ -205,7 +205,8 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         )
         self.assertEqual(payload["payments"], [])
         log_output = "\n".join(logs.output)
-        self.assertIn("SQL query:\nSELECT", log_output)
+        self.assertIn("get_dashboard_data: SELECT ", log_output)
+        self.assertIn("| found 1 row(s)", log_output)
         self.assertIn(
             "Backend output: Dashboard loaded: 1 order, $42.50 total, "
             "0 payment record(s). Orders: #101 $42.50, date unknown, unpaid.",
