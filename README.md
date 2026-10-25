@@ -1,59 +1,5 @@
 # BTM 495 Project
 
-## Project overview
-
-This project is a website for a bike shop. It is designed to help customers
-and administrators manage user profiles, events, appointments, orders,
-payments, and inventory. Administrators manage the shop's information and
-operations, while customers use the website to access shop services.
-
-The team developed the code in Python, using its UML class design as a guide
-for classes, attributes, and methods. The project was not generated from a
-Visual Paradigm model.
-
-SQLite provides the database. Its tables are defined in
-`database/schema.sql`, and `database/sqlite_database.py` initializes the
-database file at `database/lpvr.db`.
-
-## Project structure
-
-- `backend/models/` contains Python classes for the project concepts, such as
-  users, events, appointments, orders, carts, inventory, items, and payments.
-- `backend/apis/` contains the local website API and focused application
-  operations for profiles, shopping-cart persistence, ordering, and payments.
-- `backend/utils/` contains shared SQLite query/transaction, validation,
-  logging, HTTP request/response helpers, operation responses, and schema
-  identifier constants.
-- `database/schema.sql` defines the SQLite tables.
-- `database/sqlite_database.py` initializes the database from its schema.
-- `shopping_cart` stores one active cart per customer as JSON item IDs,
-  quantities, and unit-price snapshots; successful database checkout clears it
-  in the same transaction as the order and inventory updates.
-- `ShoppingCart` in `backend/models/shopping_cart.py` contains in-memory cart
-  behavior; `ShoppingCartAPI` in `backend/apis/shopping_cart_api.py` handles
-  loading and persisting that cart.
-- Domain operations return `Response` values with a message, severity,
-  success flag, and optional data instead of bare status strings.
-- `admin` and `customer` store their own profile records. `User` is the shared
-  in-memory base type; `Admin` and `Customer` are its role-specific types.
-- Checked-out cart contents are stored in `order_item`, including each
-  item's quantity and checkout-time unit-price snapshot. The order operations
-  in `backend/apis/order_api.py` persist the order and lines, decrement
-  available database stock, and clear the cart only after the transaction
-  succeeds.
-- `frontend/` contains the website HTML, CSS, and JavaScript.
-- `tests/` contains the website tests. `tests/unitTests/` contains SQLite
-  schema, payment API, profile API, order API, and domain-model tests, along
-  with the manual cash-payment demo.
-- `main.py` runs the command-line payment example.
-- `run_local_website.py` starts the local website.
-
-User profile creation and updates are supported through `ManageProfile`.
-`createAccount` hashes the supplied password with PBKDF2 before storing it in
-the `password_hash` column. `login` checks both Admin and Customer accounts
-using only email and password; it returns the account only when exactly one
-role matches. Passwords must be at least eight characters.
-
 ## Quick start
 
 **Step 1. Clone the project**
@@ -117,3 +63,57 @@ your data.
   `3 = Cancelled`) is used by events, appointments, orders, and payments. See
   `StatusID` in `backend/utils/constants.py`.
 - `python main.py` runs the command-line mock payment example.
+
+## Project overview
+
+This project is a website for a bike shop. It is designed to help customers
+and administrators manage user profiles, events, appointments, orders,
+payments, and inventory. Administrators manage the shop's information and
+operations, while customers use the website to access shop services.
+
+The team developed the code in Python, using its UML class design as a guide
+for classes, attributes, and methods. The project was not generated from a
+Visual Paradigm model.
+
+SQLite provides the database. Its tables are defined in
+`database/schema.sql`, and `database/sqlite_database.py` initializes the
+database file at `database/lpvr.db`.
+
+## Project structure
+
+- `backend/models/` contains Python classes for the project concepts, such as
+  users, events, appointments, orders, carts, inventory, items, and payments.
+- `backend/apis/` contains the local website API and focused application
+  operations for profiles, shopping-cart persistence, ordering, and payments.
+- `backend/utils/` contains shared SQLite query/transaction, validation,
+  logging, HTTP request/response helpers, operation responses, and schema
+  identifier constants.
+- `database/schema.sql` defines the SQLite tables.
+- `database/sqlite_database.py` initializes the database from its schema.
+- `shopping_cart` stores one active cart per customer as JSON item IDs,
+  quantities, and unit-price snapshots; successful database checkout clears it
+  in the same transaction as the order and inventory updates.
+- `ShoppingCart` in `backend/models/shopping_cart.py` contains in-memory cart
+  behavior; `ShoppingCartAPI` in `backend/apis/shopping_cart_api.py` handles
+  loading and persisting that cart.
+- Domain operations return `Response` values with a message, severity,
+  success flag, and optional data instead of bare status strings.
+- `admin` and `customer` store their own profile records. `User` is the shared
+  in-memory base type; `Admin` and `Customer` are its role-specific types.
+- Checked-out cart contents are stored in `order_item`, including each
+  item's quantity and checkout-time unit-price snapshot. The order operations
+  in `backend/apis/order_api.py` persist the order and lines, decrement
+  available database stock, and clear the cart only after the transaction
+  succeeds.
+- `frontend/` contains the website HTML, CSS, and JavaScript.
+- `tests/` contains the website tests. `tests/unitTests/` contains SQLite
+  schema, payment API, profile API, order API, and domain-model tests, along
+  with the manual cash-payment demo.
+- `main.py` runs the command-line payment example.
+- `run_local_website.py` starts the local website.
+
+User profile creation and updates are supported through `ManageProfile`.
+`createAccount` hashes the supplied password with PBKDF2 before storing it in
+the `password_hash` column. `login` checks both Admin and Customer accounts
+using only email and password; it returns the account only when exactly one
+role matches. Passwords must be at least eight characters.
