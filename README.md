@@ -26,7 +26,7 @@ git clone https://github.com/Humi852/BTM495_project.git
 cd BTM495_project
 ```
 
-**Step 2. Run the setup script (one line)**
+**Step 2. Run the start script (one line)**
 
 It creates the Python environment (skipped if it already exists), starts the
 local website, and opens it in your browser. Requires Python 3.10 or newer.
@@ -34,13 +34,13 @@ local website, and opens it in your browser. Requires Python 3.10 or newer.
 Windows:
 
 ```
-setup.bat
+start.bat
 ```
 
 macOS / Linux:
 
 ```
-bash setup.sh
+bash start.sh
 ```
 
 Press `Ctrl+C` in the terminal to stop the server. If the browser does not
@@ -73,7 +73,7 @@ your data.
 ## Optional config
 
 - Fresh database: stop the server, then delete `database/lpvr.db`.
-- Another port: `setup.bat --port 8766` or `bash setup.sh --port 8766`.
+- Another port: `start.bat --port 8766` or `bash start.sh --port 8766`.
 - Command-line mock payment: `python main.py`.
 
 ## Project structure
@@ -86,7 +86,7 @@ your data.
 | `backend/utils/` | SQLite query builder and transactions, validation, logging, responses, table/column/status constants |
 | `database/` | `schema.sql` (tables), `sqlite_database.py` (creates and upgrades `lpvr.db`) |
 | `tests/` | Website tests; `tests/unitTests/` has the unit tests |
-| `setup.bat` / `setup.sh` | One-line setup and start |
+| `start.bat` / `start.sh` | One-line setup and start |
 | `run_local_website.py`, `main.py` | Start the website, run the command-line payment example |
 
 Accounts: `createAccount` stores a PBKDF2 password hash, and `login` checks
@@ -135,3 +135,6 @@ flowchart LR
     orders -.-> status
     payment -.-> status
 ```
+
+## Contribution
+Except for repo admins, everyone else needs to work on a local branch and open a PR.
