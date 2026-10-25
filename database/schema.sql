@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS event (
     description TEXT,
     eventDateTime DATETIME,
     participantLimit INTEGER,
+    participantCount INTEGER,
+    statusID INTEGER,
     FOREIGN KEY (admin_id) REFERENCES admin(admin_id)
 );
 
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS appointment (
     customer_id INTEGER,
     appointmentTime DATETIME,
     description TEXT,
+    statusID INTEGER,
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
 );
 

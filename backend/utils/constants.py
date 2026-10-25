@@ -26,6 +26,8 @@ class DatabaseColumns:
     DESCRIPTION = "description"
     EVENT_DATE_TIME = "eventDateTime"
     PARTICIPANT_LIMIT = "participantLimit"
+    PARTICIPANT_COUNT = "participantCount"
+    STATUS_ID = "statusID"
     APPOINTMENT_TIME = "appointmentTime"
     ORDER_DATE_TIME = "orderDateTime"
     TOTAL_AMOUNT = "totalAmount"
@@ -71,12 +73,15 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.DESCRIPTION,
         DatabaseColumns.EVENT_DATE_TIME,
         DatabaseColumns.PARTICIPANT_LIMIT,
+        DatabaseColumns.PARTICIPANT_COUNT,
+        DatabaseColumns.STATUS_ID,
     ),
     DatabaseTables.APPOINTMENT: (
         DatabaseColumns.APPOINTMENT_ID,
         DatabaseColumns.CUSTOMER_ID,
         DatabaseColumns.APPOINTMENT_TIME,
         DatabaseColumns.DESCRIPTION,
+        DatabaseColumns.STATUS_ID,
     ),
     DatabaseTables.ORDERS: (
         DatabaseColumns.ORDER_ID,
