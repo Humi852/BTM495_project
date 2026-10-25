@@ -1,4 +1,21 @@
-# BTM 495 Project
+# BTM 495 Project: Online Bike Shop Website
+
+A full-stack bike shop in one command: online checkout, credit card payments, live inventory, events, and a rock-solid SQLite database.
+
+```mermaid
+flowchart LR
+    U(["User<br/>(browser)"])
+    FE["<b>1. Frontend</b><br/>HTML, CSS, JS<br/>input and display only"]
+    BE["<b>2. Backend</b><br/>routes, rules,<br/>models, responses"]
+    DB[("<b>3. SQL layer</b><br/>SQLite<br/>one source of truth")]
+
+    U -- "click" --> FE
+    FE -- "HTTP /api" --> BE
+    BE -- "SQL transaction" --> DB
+    DB -. "result" .-> BE
+    BE -. "JSON" .-> FE
+    FE -. "message" .-> U
+```
 
 ## Quick start
 
@@ -58,48 +75,6 @@ your data.
 - Fresh database: stop the server, then delete `database/lpvr.db`.
 - Another port: `setup.bat --port 8766` or `bash setup.sh --port 8766`.
 - Command-line mock payment: `python main.py`.
-
-## Project overview
-
-A bike-shop website where customers and administrators manage profiles,
-events, appointments, orders, payments, and inventory. It is written in Python
-with SQLite as the single source of truth: every feature reads and writes the
-database through the same path.
-
-```mermaid
-flowchart TD
-    U(["User in browser<br/>clicks e.g. Make a payment"])
-
-    subgraph FE["1. FRONTEND"]
-        F["Collects input, calls the backend, shows the message<br/>No business rules"]
-    end
-
-    subgraph BE["2. BACKEND"]
-        R["a. Route<br/>picks the operation for the URL"]
-        O["b. Operation<br/>checks input and rules:<br/>event full? enough stock? card valid?"]
-        M["c. Model<br/>Order, Payment, Event, Item ..."]
-        S["d. Response<br/>success flag + message + data"]
-        R --> O
-        O --> M
-        M --> S
-    end
-
-    subgraph DB["3. SQL LAYER"]
-        Q["One SQL session or transaction per operation<br/>built with the query builder and shared constants"]
-        D[("SQLite database<br/>tables, keys, foreign keys, checks")]
-        Q --> D
-    end
-
-    U --> F
-    F -- "HTTP request: GET / POST / PATCH / DELETE /api/..." --> R
-    O -- "read / write" --> Q
-    D -. "no negative stock, no duplicate registration,<br/>valid status, no orphan rows" .-> Q
-    S -- "JSON" --> F
-    F -- "message and table update" --> U
-```
-
-(Diagrams are Mermaid and render on GitHub. In VS Code, install the "Markdown
-Preview Mermaid Support" extension to see them.)
 
 ## Project structure
 
