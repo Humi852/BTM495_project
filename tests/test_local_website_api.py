@@ -81,6 +81,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 {"name": "payment", "rows": 0},
                 {"name": "sample", "rows": 2},
                 {"name": "shopping_cart", "rows": 0},
+                {"name": "status", "rows": 12},
             ],
         )
 

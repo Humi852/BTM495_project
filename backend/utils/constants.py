@@ -8,6 +8,7 @@ class DatabaseTables:
     SHOPPING_CART = "shopping_cart"
     ORDER_ITEM = "order_item"
     PAYMENT = "payment"
+    STATUS = "status"
 
 
 class DatabaseColumns:
@@ -75,6 +76,7 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.PARTICIPANT_LIMIT,
         DatabaseColumns.PARTICIPANT_COUNT,
         DatabaseColumns.STATUS_ID,
+        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.APPOINTMENT: (
         DatabaseColumns.APPOINTMENT_ID,
@@ -82,6 +84,7 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.APPOINTMENT_TIME,
         DatabaseColumns.DESCRIPTION,
         DatabaseColumns.STATUS_ID,
+        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.ORDERS: (
         DatabaseColumns.ORDER_ID,
@@ -89,6 +92,7 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.ORDER_DATE_TIME,
         DatabaseColumns.TOTAL_AMOUNT,
         DatabaseColumns.STATUS_ID,
+        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.ITEM: (
         DatabaseColumns.ITEM_ID,
@@ -117,5 +121,11 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.AMOUNT,
         DatabaseColumns.PAYMENT_METHOD,
         DatabaseColumns.PAYMENT_STATUS_ID,
+        DatabaseColumns.CATEGORY,
+    ),
+    DatabaseTables.STATUS: (
+        DatabaseColumns.STATUS_ID,
+        DatabaseColumns.CATEGORY,
+        DatabaseColumns.NAME,
     ),
 }

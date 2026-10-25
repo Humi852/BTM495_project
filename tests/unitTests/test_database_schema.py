@@ -42,6 +42,7 @@ class DatabaseSchemaTests(unittest.TestCase):
                 "orders",
                 "order_item",
                 "payment",
+                "status",
             },
         )
         self.assertEqual(tables, set(DATABASE_SCHEMA_COLUMNS))
@@ -68,6 +69,7 @@ class DatabaseSchemaTests(unittest.TestCase):
             "orders": ["order_id"],
             "order_item": ["order_id", "item_id"],
             "payment": ["payment_id"],
+            "status": ["statusID"],
         }
 
         for table, expected_columns in expected_primary_keys.items():
@@ -88,16 +90,20 @@ class DatabaseSchemaTests(unittest.TestCase):
                 self.assertEqual(primary_key_columns, expected_columns)
 
     def test_foreign_keys_are_defined_for_expected_relationships(self) -> None:
+        status_keys = {
+            ("statusID", "status", "statusID"),
+            ("category", "status", "category"),
+        }
         expected_foreign_keys = {
-            "event": {("admin_id", "admin", "admin_id")},
-            "appointment": {("customer_id", "customer", "customer_id")},
-            "orders": {("customer_id", "customer", "customer_id")},
+            "event": {("admin_id", "admin", "admin_id")} | status_keys,
+            "appointment": {("customer_id", "customer", "customer_id")} | status_keys,
+            "orders": {("customer_id", "customer", "customer_id")} | status_keys,
             "shopping_cart": {("customer_id", "customer", "customer_id")},
             "order_item": {
                 ("order_id", "orders", "order_id"),
                 ("item_id", "item", "item_id"),
             },
-            "payment": {("order_id", "orders", "order_id")},
+            "payment": {("order_id", "orders", "order_id")} | status_keys,
         }
 
         for table, expected in expected_foreign_keys.items():
@@ -241,6 +247,53 @@ class DatabaseSchemaTests(unittest.TestCase):
                 with self.assertRaises(sqlite3.IntegrityError):
                     self.connection.execute(statement, parameters)
                 self.connection.rollback()
+
+    def test_status_must_match_each_tables_constant_category(self) -> None:
+        self.connection.executescript(
+            """
+            INSERT INTO admin (admin_id, name) VALUES (1, 'Morgan Admin');
+            INSERT INTO customer (customer_id, name) VALUES (2, 'Casey Customer');
+            INSERT INTO event (event_id, admin_id, name, statusID)
+                VALUES (3, 1, 'Community Ride', 10);
+            INSERT INTO appointment (appointment_id, customer_id, statusID)
+                VALUES (4, 2, 7);
+            INSERT INTO orders (order_id, customer_id, statusID)
+                VALUES (6, 2, 4);
+            INSERT INTO payment
+                (order_id, paymentDateTime, amount, paymentMethod, statusID)
+                VALUES (6, '2026-11-03', 17.0, 'Cash', 1);
+            """
+        )
+        categories = {
+            table: self.connection.execute(
+                f"SELECT category FROM {table}"
+            ).fetchone()[0]
+            for table in ("event", "appointment", "orders", "payment")
+        }
+        self.assertEqual(
+            categories,
+            {
+                "event": "event",
+                "appointment": "appointment",
+                "orders": "order",
+                "payment": "payment",
+            },
+        )
+
+        invalid_inserts = (
+            "INSERT INTO event (admin_id, name, statusID) VALUES (1, 'Wrong', 1)",
+            "INSERT INTO appointment (customer_id, statusID) VALUES (2, 10)",
+            "INSERT INTO orders (customer_id, statusID) VALUES (2, 1)",
+            "INSERT INTO payment "
+            "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
+            "VALUES (6, '2026-11-03', 1.0, 'Cash', 4)",
+            "INSERT INTO orders (customer_id, statusID, category) "
+            "VALUES (2, 1, 'payment')",
+        )
+        for statement in invalid_inserts:
+            with self.subTest(statement=statement):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.connection.execute(statement)
 
     def test_order_item_rejects_nonpositive_quantity_and_negative_price(self) -> None:
         self.connection.executescript(
