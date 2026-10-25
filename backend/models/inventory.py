@@ -1,13 +1,13 @@
-from backend.models.part import Part
+from backend.models.item import Item
 from backend.utils.response import Response
 
 
 class Inventory:
     def __init__(self, inventoryId: int) -> None:
         self.inventoryId = inventoryId
-        self.items: dict[int, Part] = {}
+        self.items: dict[int, Item] = {}
 
-    def addItem(self, part: Part) -> Response:
+    def addItem(self, part: Item) -> Response:
         if part.itemId in self.items:
             return Response.warning("Item already exists.")
         self.items[part.itemId] = part

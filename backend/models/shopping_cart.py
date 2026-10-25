@@ -13,8 +13,8 @@ class ShoppingCart:
         item_id = item.itemId
         current = self.items[item_id].quantity if item_id in self.items else 0
         if type(quantity) is not int or quantity <= 0 or (
-            hasattr(item, "stockQuantity")
-            and current + quantity > item.checkStock()
+            item.stockQuantity is not None
+            and current + quantity > item.stockQuantity
         ):
             return Response.warning("Invalid quantity or out of stock.")
         self.items[item_id] = CartItem(item, current + quantity)
@@ -31,7 +31,7 @@ class ShoppingCart:
             return Response.warning("Item not found.")
         item = self.items[itemId].item
         if type(quantity) is not int or quantity <= 0 or (
-            hasattr(item, "stockQuantity") and quantity > item.checkStock()
+            item.stockQuantity is not None and quantity > item.stockQuantity
         ):
             return Response.warning("Invalid quantity or out of stock.")
         self.items[itemId].quantity = quantity
@@ -54,8 +54,8 @@ class ShoppingCart:
         for cart_item in self.items.values():
             item = cart_item.item
             if (
-                hasattr(item, "stockQuantity")
-                and cart_item.quantity > item.checkStock()
+                item.stockQuantity is not None
+                and cart_item.quantity > item.stockQuantity
             ):
                 return Response.warning("Item out of stock.")
         return Response.ok("Stock is available.")
@@ -63,7 +63,7 @@ class ShoppingCart:
     def _completeCheckout(self, order: Order) -> Response:
         for cart_item in self.items.values():
             item = cart_item.item
-            if hasattr(item, "stockQuantity"):
+            if item.stockQuantity is not None:
                 item.stockQuantity -= cart_item.quantity
         self.items.clear()
         return Response.ok("Order placed successfully.", order)

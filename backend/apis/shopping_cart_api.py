@@ -6,7 +6,6 @@ from pathlib import Path
 
 from backend.models.cart_item import CartItem
 from backend.models.item import Item
-from backend.models.part import Part
 from backend.models.shopping_cart import ShoppingCart
 from backend.utils.constants import DatabaseColumns, DatabaseTables
 from backend.utils.response import Response
@@ -212,25 +211,23 @@ class ShoppingCartAPI:
                 (
                     DatabaseColumns.NAME,
                     DatabaseColumns.DESCRIPTION,
+                    DatabaseColumns.CATEGORY,
+                    DatabaseColumns.BRAND,
                     DatabaseColumns.STOCK_QUANTITY,
                 ),
                 where=(SQLCondition(DatabaseColumns.ITEM_ID, item_id),),
             )
             if row is None:
                 raise ValueError(f"Item {item_id} in the cart does not exist.")
-            name, description, stock = row
-            price = entry["price"]
-            if stock is None:
-                item = Item(item_id, name, description or "", price)
-            else:
-                item = Part(
-                    item_id,
-                    name,
-                    description or "",
-                    price,
-                    "",
-                    "",
-                    stock,
-                )
+            name, description, category, brand, stock = row
+            item = Item(
+                item_id,
+                name,
+                description or "",
+                entry["price"],
+                category or "",
+                brand or "",
+                stock,
+            )
             items[item_id] = CartItem(item, entry["quantity"])
         return items

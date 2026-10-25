@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from backend.models.part import Part
+from backend.models.item import Item
 from backend.apis.shopping_cart_api import ShoppingCartAPI
 from backend.models.customer import Customer
 from backend.apis.order_api import OrderService
@@ -32,7 +32,7 @@ class OrderServiceTests(unittest.TestCase):
             )
             connection.commit()
 
-        self.part = Part(10, "Tube", "Road tube", 8.5, "Tires", "RoadCo", 5)
+        self.part = Item(10, "Tube", "Road tube", 8.5, "Tires", "RoadCo", 5)
         self.cart_api = ShoppingCartAPI(self.database_path)
         self.cart = self.cart_api.loadCart(self.customer.customerID)
         self.cart_api.addItem(self.cart, self.part, 2)
