@@ -53,67 +53,110 @@ The last line should say `OK`. Warning and error log lines in the middle of
 the run are expected. The tests use temporary databases, so they do not change
 your data.
 
-## Other
+## Optional config
 
-- Delete `database/lpvr.db` (after stopping the server) to start with a fresh
-  database.
-- Use another port with `bash setup.sh --port 8766` or
-  `setup.bat --port 8766`.
-- A single shared `status` table (`1 = Pending`, `2 = Completed`,
-  `3 = Cancelled`) is used by events, appointments, orders, and payments. See
-  `StatusID` in `backend/utils/constants.py`.
-- `python main.py` runs the command-line mock payment example.
+- Fresh database: stop the server, then delete `database/lpvr.db`.
+- Another port: `setup.bat --port 8766` or `bash setup.sh --port 8766`.
+- Command-line mock payment: `python main.py`.
 
 ## Project overview
 
-This project is a website for a bike shop. It is designed to help customers
-and administrators manage user profiles, events, appointments, orders,
-payments, and inventory. Administrators manage the shop's information and
-operations, while customers use the website to access shop services.
+A bike-shop website where customers and administrators manage profiles,
+events, appointments, orders, payments, and inventory. It is written in Python
+with SQLite as the single source of truth: every feature reads and writes the
+database through the same path.
 
-The team developed the code in Python, using its UML class design as a guide
-for classes, attributes, and methods. The project was not generated from a
-Visual Paradigm model.
+```mermaid
+flowchart TD
+    U(["User in browser<br/>clicks e.g. Make a payment"])
 
-SQLite provides the database. Its tables are defined in
-`database/schema.sql`, and `database/sqlite_database.py` initializes the
-database file at `database/lpvr.db`.
+    subgraph FE["1. FRONTEND"]
+        F["Collects input, calls the backend, shows the message<br/>No business rules"]
+    end
+
+    subgraph BE["2. BACKEND"]
+        R["a. Route<br/>picks the operation for the URL"]
+        O["b. Operation<br/>checks input and rules:<br/>event full? enough stock? card valid?"]
+        M["c. Model<br/>Order, Payment, Event, Item ..."]
+        S["d. Response<br/>success flag + message + data"]
+        R --> O
+        O --> M
+        M --> S
+    end
+
+    subgraph DB["3. SQL LAYER"]
+        Q["One SQL session or transaction per operation<br/>built with the query builder and shared constants"]
+        D[("SQLite database<br/>tables, keys, foreign keys, checks")]
+        Q --> D
+    end
+
+    U --> F
+    F -- "HTTP request: GET / POST / PATCH / DELETE /api/..." --> R
+    O -- "read / write" --> Q
+    D -. "no negative stock, no duplicate registration,<br/>valid status, no orphan rows" .-> Q
+    S -- "JSON" --> F
+    F -- "message and table update" --> U
+```
+
+(Diagrams are Mermaid and render on GitHub. In VS Code, install the "Markdown
+Preview Mermaid Support" extension to see them.)
 
 ## Project structure
 
-- `backend/models/` contains Python classes for the project concepts, such as
-  users, events, appointments, orders, carts, inventory, items, and payments.
-- `backend/apis/` contains the local website API and focused application
-  operations for profiles, shopping-cart persistence, ordering, and payments.
-- `backend/utils/` contains shared SQLite query/transaction, validation,
-  logging, HTTP request/response helpers, operation responses, and schema
-  identifier constants.
-- `database/schema.sql` defines the SQLite tables.
-- `database/sqlite_database.py` initializes the database from its schema.
-- `shopping_cart` stores one active cart per customer as JSON item IDs,
-  quantities, and unit-price snapshots; successful database checkout clears it
-  in the same transaction as the order and inventory updates.
-- `ShoppingCart` in `backend/models/shopping_cart.py` contains in-memory cart
-  behavior; `ShoppingCartAPI` in `backend/apis/shopping_cart_api.py` handles
-  loading and persisting that cart.
-- Domain operations return `Response` values with a message, severity,
-  success flag, and optional data instead of bare status strings.
-- `admin` and `customer` store their own profile records. `User` is the shared
-  in-memory base type; `Admin` and `Customer` are its role-specific types.
-- Checked-out cart contents are stored in `order_item`, including each
-  item's quantity and checkout-time unit-price snapshot. The order operations
-  in `backend/apis/order_api.py` persist the order and lines, decrement
-  available database stock, and clear the cart only after the transaction
-  succeeds.
-- `frontend/` contains the website HTML, CSS, and JavaScript.
-- `tests/` contains the website tests. `tests/unitTests/` contains SQLite
-  schema, payment API, profile API, order API, and domain-model tests, along
-  with the manual cash-payment demo.
-- `main.py` runs the command-line payment example.
-- `run_local_website.py` starts the local website.
+| Folder / file | Purpose |
+| --- | --- |
+| `frontend/` | Website HTML, CSS, JavaScript |
+| `backend/apis/` | Local website server and application operations (profiles, cart, orders, payments, inventory, events) |
+| `backend/models/` | Python classes for users, items, carts, orders, payments, events, appointments |
+| `backend/utils/` | SQLite query builder and transactions, validation, logging, responses, table/column/status constants |
+| `database/` | `schema.sql` (tables), `sqlite_database.py` (creates and upgrades `lpvr.db`) |
+| `tests/` | Website tests; `tests/unitTests/` has the unit tests |
+| `setup.bat` / `setup.sh` | One-line setup and start |
+| `run_local_website.py`, `main.py` | Start the website, run the command-line payment example |
 
-User profile creation and updates are supported through `ManageProfile`.
-`createAccount` hashes the supplied password with PBKDF2 before storing it in
-the `password_hash` column. `login` checks both Admin and Customer accounts
-using only email and password; it returns the account only when exactly one
-role matches. Passwords must be at least eight characters.
+Accounts: `createAccount` stores a PBKDF2 password hash, and `login` checks
+Admin and Customer accounts by email and password. Passwords must be at least
+eight characters (the local demo account `login@example.com` is the only
+exception).
+
+## Details
+
+**Checkout.** All steps run in one transaction: either all are saved or none.
+
+```mermaid
+flowchart LR
+    C["Cart"] --> A["Check stock"]
+    A --> B["Create order<br/>and order lines"]
+    B --> E["Reduce stock"]
+    B --> H["Write stock-history row"]
+    E --> X["Clear the cart"]
+    H --> X
+    X --> OK(["Commit: all saved"])
+    A -. "any step fails" .-> RB(["Rollback: nothing saved,<br/>user sees why"])
+    B -.-> RB
+    E -.-> RB
+    H -.-> RB
+```
+
+**Data model.** Events, appointments, orders, and payments share one `status`
+table: `1 Pending`, `2 Completed`, `3 Cancelled` (see `StatusID` in
+`backend/utils/constants.py`).
+
+```mermaid
+flowchart LR
+    customer -- places --> orders
+    orders -- has --> order_item
+    order_item -- is --> item
+    orders -- "paid by" --> payment
+    item -- "stock in" --> inventory
+    item -- "changes in<br/>who, why, when" --> inventory_history
+    customer -- books --> appointment
+    customer -- joins --> event_registration
+    event_registration -- for --> event
+    admin -- manages --> event
+    status["status<br/>1 Pending, 2 Completed, 3 Cancelled"]
+    event -.-> status
+    appointment -.-> status
+    orders -.-> status
+    payment -.-> status
+```
