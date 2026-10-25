@@ -7,18 +7,20 @@ from backend.utils.response import Response
 @dataclass
 class Event:
     eventID: int
-    eventName: str = field(metadata={"updatable": True})
+    name: str = field(metadata={"updatable": True})
     description: str = field(metadata={"updatable": True})
     location: str = field(metadata={"updatable": True})
     eventDateTime: datetime = field(metadata={"updatable": True})
-    capacity: int = field(metadata={"updatable": True})
-    status: str = field(default="Active", init=False)
+    participantLimit: int = field(metadata={"updatable": True})
+    adminID: int | None = None
+    # Matches the 'event' category names in the schema's status table.
+    status: str = field(default="Scheduled", init=False)
 
     def createEvent(self, events: dict[int, "Event"]) -> Response:
         if (
-            not self.eventName
+            not self.name
             or not self.eventDateTime
-            or self.capacity <= 0
+            or self.participantLimit <= 0
             or self.eventID in events
         ):
             return Response.warning("Invalid event information.")

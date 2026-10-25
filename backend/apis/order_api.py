@@ -4,7 +4,7 @@ from pathlib import Path
 from backend.apis.shopping_cart_api import ShoppingCartAPI
 from backend.models.order import Order
 from backend.models.shopping_cart import ShoppingCart
-from backend.utils.constants import DatabaseColumns, DatabaseTables
+from backend.utils.constants import DatabaseColumns, DatabaseTables, DatabaseValues
 from backend.utils.response import Response
 from backend.utils.sqlite import SQLComparison, SQLCondition, SQLiteQuery
 from database.sqlite_database import DB_PATH
@@ -57,6 +57,7 @@ class OrderService:
                         "%Y-%m-%d %H:%M:%S"
                     ),
                     DatabaseColumns.TOTAL_AMOUNT: total_amount,
+                    DatabaseColumns.STATUS_ID: DatabaseValues.ORDER_STATUS_ID_PENDING,
                 },
             )
             order_id = result.lastrowid

@@ -49,14 +49,15 @@ INSERT OR IGNORE INTO status (statusID, category, name) VALUES
     (8, 'order', 'Cancelled'),
     (9, 'order', 'Completed'),
 -- Payment Statuses
-    (10, 'payment', 'pending'),
-    (11, 'payment', 'paid'),
-    (12, 'payment', 'failed');
+    (10, 'payment', 'Pending'),
+    (11, 'payment', 'Paid'),
+    (12, 'payment', 'Failed');
 
 -- 3. Event Table
 CREATE TABLE IF NOT EXISTS event (
     event_id INTEGER PRIMARY KEY,
     admin_id INTEGER,
+    location TEXT,
     name TEXT NOT NULL,
     description TEXT,
     eventDateTime DATETIME,

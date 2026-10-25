@@ -223,7 +223,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 "INSERT INTO payment "
                 "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
                 "VALUES (?, ?, ?, ?, (SELECT statusID FROM status "
-                "WHERE category = 'payment' AND name = 'paid'))",
+                "WHERE category = 'payment' AND name = 'Paid'))",
                 (101, "2025-01-01 12:00:00", 42.5, "Credit Card"),
             )
             connection.commit()
@@ -245,6 +245,27 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                     "paid_status": True,
                 }
             ],
+        )
+
+    def test_dashboard_does_not_mark_pending_or_failed_payments_paid(self) -> None:
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            for status_name in ("Pending", "Failed"):
+                connection.execute(
+                    "INSERT INTO payment "
+                    "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
+                    "VALUES (?, ?, ?, ?, (SELECT statusID FROM status "
+                    "WHERE category = 'payment' AND name = ?))",
+                    (101, "2025-01-01 12:00:00", 42.5, "Cash", status_name),
+                )
+            connection.commit()
+
+        with urlopen(self.base_url + "/api/dashboard") as response:
+            payload = json.load(response)
+
+        self.assertFalse(payload["orders"][0]["paid"])
+        self.assertEqual(
+            [payment["paid_status"] for payment in payload["payments"]],
+            [False, False],
         )
 
     def test_sample_order_is_created_and_reused_until_paid(self) -> None:

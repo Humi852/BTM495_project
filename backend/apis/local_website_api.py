@@ -134,7 +134,9 @@ def get_dashboard_data() -> dict[str, object]:
                 "payment_date": payment_date,
                 "amount": amount,
                 "payment_method": payment_method,
-                "paid_status": bool(paid_status),
+                "paid_status": (
+                    payment_status_id == DatabaseValues.PAYMENT_STATUS_ID_PAID
+                ),
             }
             for (
                 payment_id,
@@ -142,7 +144,7 @@ def get_dashboard_data() -> dict[str, object]:
                 payment_date,
                 amount,
                 payment_method,
-                paid_status,
+                payment_status_id,
             ) in session.select(
                 DatabaseTables.PAYMENT,
                 (

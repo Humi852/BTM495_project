@@ -47,7 +47,7 @@ class OrderServiceTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertEqual(order.orderId, 1)
-        self.assertEqual(order.status, "Placed")
+        self.assertEqual(order.status, "Pending")
         self.assertEqual(order.getTotalPrice(), 17.0)
         self.assertEqual(self.cart.items, {})
         self.assertEqual(self.part.checkStock(), 3)
@@ -57,6 +57,13 @@ class OrderServiceTests(unittest.TestCase):
                     "SELECT customer_id, totalAmount FROM orders WHERE order_id = 1"
                 ).fetchone(),
                 (self.customer.customerID, 17.0),
+            )
+            self.assertEqual(
+                connection.execute(
+                    "SELECT status.name FROM orders "
+                    "JOIN status USING (statusID, category) WHERE order_id = 1"
+                ).fetchone(),
+                (order.status,),
             )
             self.assertEqual(
                 connection.execute(

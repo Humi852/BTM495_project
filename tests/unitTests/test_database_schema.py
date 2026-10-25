@@ -1,11 +1,15 @@
 import sqlite3
 import sys
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from backend.utils.constants import DATABASE_SCHEMA_COLUMNS
+from backend.models.event import Event
+from backend.models.order import OrderStatus
+from backend.models.payment import PaymentStatus
+from backend.utils.constants import DATABASE_SCHEMA_COLUMNS, DatabaseValues
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -58,6 +62,52 @@ class DatabaseSchemaTests(unittest.TestCase):
                     )
                 )
                 self.assertEqual(actual_columns, expected_columns)
+
+    def test_paid_payment_status_constant_matches_schema(self) -> None:
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT statusID FROM status "
+                "WHERE category = 'payment' AND name = 'Paid'"
+            ).fetchone()[0],
+            DatabaseValues.PAYMENT_STATUS_ID_PAID,
+        )
+
+    def test_order_statuses_match_schema(self) -> None:
+        statuses = {
+            row[0]
+            for row in self.connection.execute(
+                "SELECT name FROM status WHERE category = 'order'"
+            )
+        }
+        self.assertEqual(statuses, {status.value for status in OrderStatus})
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT name FROM status WHERE statusID = ? AND category = 'order'",
+                (DatabaseValues.ORDER_STATUS_ID_PENDING,),
+            ).fetchone(),
+            (OrderStatus.PENDING.value,),
+        )
+
+    def test_payment_statuses_match_schema(self) -> None:
+        statuses = {
+            row[0]
+            for row in self.connection.execute(
+                "SELECT name FROM status WHERE category = 'payment'"
+            )
+        }
+        self.assertEqual(statuses, {status.value for status in PaymentStatus})
+
+    def test_event_statuses_exist_in_schema(self) -> None:
+        statuses = {
+            row[0]
+            for row in self.connection.execute(
+                "SELECT name FROM status WHERE category = 'event'"
+            )
+        }
+        event = Event(1, "Ride", "Group ride", "Park", datetime(2026, 11, 1), 5)
+        self.assertIn(event.status, statuses)
+        event.cancel()
+        self.assertIn(event.status, statuses)
 
     def test_primary_keys_are_defined_for_all_tables(self) -> None:
         expected_primary_keys = {
@@ -150,7 +200,7 @@ class DatabaseSchemaTests(unittest.TestCase):
                 VALUES (
                     7, 6, '2026-11-03', 17.0, 'Cash',
                     (SELECT statusID FROM status
-                     WHERE category = 'payment' AND name = 'paid')
+                     WHERE category = 'payment' AND name = 'Paid')
                 );
             """
         )
@@ -286,7 +336,7 @@ class DatabaseSchemaTests(unittest.TestCase):
                 VALUES (
                     6, '2026-11-03', 17.0, 'Cash',
                     (SELECT statusID FROM status
-                     WHERE category = 'payment' AND name = 'paid')
+                     WHERE category = 'payment' AND name = 'Paid')
                 );
             """
         )

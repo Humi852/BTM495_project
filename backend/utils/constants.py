@@ -26,6 +26,7 @@ class DatabaseColumns:
     ADDRESS = "address"
     PASSWORD_HASH = "password_hash"
     DESCRIPTION = "description"
+    LOCATION = "location"
     EVENT_DATE_TIME = "eventDateTime"
     PARTICIPANT_LIMIT = "participantLimit"
     STATUS_ID = "statusID"
@@ -47,6 +48,7 @@ class DatabaseColumns:
 
 
 class DatabaseValues:
+    ORDER_STATUS_ID_PENDING = 7
     PAYMENT_STATUS_ID_PAID = 11
 
 
@@ -70,6 +72,7 @@ DATABASE_SCHEMA_COLUMNS = {
     DatabaseTables.EVENT: (
         DatabaseColumns.EVENT_ID,
         DatabaseColumns.ADMIN_ID,
+        DatabaseColumns.LOCATION,
         DatabaseColumns.NAME,
         DatabaseColumns.DESCRIPTION,
         DatabaseColumns.EVENT_DATE_TIME,

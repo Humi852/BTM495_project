@@ -39,7 +39,7 @@ class EventTests(unittest.TestCase):
     def test_create_update_and_cancel_event(self) -> None:
         events: dict[int, Event] = {}
 
-        self.assertEqual(self.event.status, "Active")
+        self.assertEqual(self.event.status, "Scheduled")
         self.assertEqual(self.event.createEvent(events).msg, "Event created successfully.")
         self.assertIs(events[1], self.event)
         self.assertEqual(self.event.createEvent(events).msg, "Invalid event information.")
@@ -59,7 +59,7 @@ class EventTests(unittest.TestCase):
 
     def test_updates_event_fields_from_model_metadata(self) -> None:
         response = self.event.updateDetails(
-            eventName="Bike Maintenance Clinic",
+            name="Bike Maintenance Clinic",
             eventID=99,
             status="Cancelled",
             unknown="ignored",
@@ -67,9 +67,9 @@ class EventTests(unittest.TestCase):
 
         self.assertEqual(response.level, ResponseLevel.SUCCESS)
         self.assertTrue(response.success)
-        self.assertEqual(self.event.eventName, "Bike Maintenance Clinic")
+        self.assertEqual(self.event.name, "Bike Maintenance Clinic")
         self.assertEqual(self.event.eventID, 1)
-        self.assertEqual(self.event.status, "Active")
+        self.assertEqual(self.event.status, "Scheduled")
         self.assertFalse(hasattr(self.event, "unknown"))
 
     def test_appointment_supports_basic_domain_updates(self) -> None:
@@ -103,9 +103,11 @@ class EventTests(unittest.TestCase):
     def test_order_status_update_returns_response(self) -> None:
         order = Order(1, 20.0)
 
-        self.assertTrue(order.updateStatus("Shipped").success)
-        self.assertEqual(order.status, "Shipped")
+        self.assertTrue(order.updateStatus("Completed").success)
+        self.assertEqual(order.status, "Completed")
         self.assertFalse(order.updateStatus(" ").success)
+        self.assertFalse(order.updateStatus("Shipped").success)
+        self.assertEqual(order.status, "Completed")
 
 
 class ShoppingCartTests(unittest.TestCase):
@@ -149,7 +151,7 @@ class ShoppingCartTests(unittest.TestCase):
 
         self.assertTrue(checkout.success)
         self.assertEqual(order.orderId, 20)
-        self.assertEqual(order.status, "Placed")
+        self.assertEqual(order.status, "Pending")
         self.assertEqual(order.getTotalPrice(), 34.0)
         self.assertEqual(self.part.checkStock(), 1)
         self.assertEqual(self.cart.items, {})
