@@ -41,7 +41,6 @@ class DatabaseColumns:
     PAYMENT_DATE_TIME = "paymentDateTime"
     PAYMENT_METHOD = "paymentMethod"
     PAID_STATUS = "paidstatus"
-    DETAILS = "details"
     AMOUNT = "amount"
     UPDATED_AT = "updated_at"
 
@@ -117,6 +116,5 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.AMOUNT,
         DatabaseColumns.PAYMENT_METHOD,
         DatabaseColumns.PAID_STATUS,
-        DatabaseColumns.DETAILS,
     ),
 }

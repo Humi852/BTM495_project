@@ -134,8 +134,8 @@ class DatabaseSchemaTests(unittest.TestCase):
                 VALUES (6, 5, 2, 8.5);
             INSERT INTO payment
                 (payment_id, order_id, paymentDateTime, amount, paymentMethod,
-                 paidstatus, details)
-                VALUES (7, 6, '2026-11-03', 17.0, 'Cash', 1, 'Paid in store');
+                 paidstatus)
+                VALUES (7, 6, '2026-11-03', 17.0, 'Cash', 1);
             """
         )
 
@@ -230,8 +230,8 @@ class DatabaseSchemaTests(unittest.TestCase):
             ),
             (
                 "INSERT INTO payment "
-                "(order_id, paymentDateTime, amount, paymentMethod, paidstatus, details) "
-                "VALUES (999, '2026-11-03', 1.0, 'Cash', 0, 'Test')",
+                "(order_id, paymentDateTime, amount, paymentMethod,                 paidstatus) "
+                                "VALUES (999, '2026-11-03', 1.0, 'Cash', 0)",
                 (),
             ),
         )

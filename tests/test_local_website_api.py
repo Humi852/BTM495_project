@@ -219,9 +219,9 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.execute(
                 "INSERT INTO payment "
-                "(order_id, paymentDateTime, amount, paymentMethod, paidstatus, details) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (101, "2025-01-01 12:00:00", 42.5, "Credit Card", 1, "Paid"),
+                "(order_id, paymentDateTime, amount, paymentMethod,                 paidstatus) "
+                                "VALUES (?, ?, ?, ?, ?)",
+                                (101, "2025-01-01 12:00:00", 42.5, "Credit Card", 1),
             )
             connection.commit()
 
@@ -240,7 +240,6 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                     "amount": 42.5,
                     "payment_method": "Credit Card",
                     "paid_status": True,
-                    "details": "Paid",
                 }
             ],
         )

@@ -135,7 +135,6 @@ def get_dashboard_data() -> dict[str, object]:
                 "amount": amount,
                 "payment_method": payment_method,
                 "paid_status": bool(paid_status),
-                "details": details,
             }
             for (
                 payment_id,
@@ -144,7 +143,6 @@ def get_dashboard_data() -> dict[str, object]:
                 amount,
                 payment_method,
                 paid_status,
-                details,
             ) in session.select(
                 DatabaseTables.PAYMENT,
                 (
@@ -154,7 +152,6 @@ def get_dashboard_data() -> dict[str, object]:
                     DatabaseColumns.AMOUNT,
                     DatabaseColumns.PAYMENT_METHOD,
                     DatabaseColumns.PAID_STATUS,
-                    DatabaseColumns.DETAILS,
                 ),
                 order_by=(
                     SQLOrder(
