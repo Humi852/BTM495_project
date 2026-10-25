@@ -27,13 +27,13 @@ class DatabaseSchemaTests(unittest.TestCase):
 
     def test_status_id_enum_matches_status_table(self) -> None:
         rows = self.connection.execute(
-            "SELECT statusID, category, name FROM status"
+            "SELECT statusID, name FROM status"
         ).fetchall()
         self.assertEqual(
             {member.value: member.name for member in StatusID},
             {
-                status_id: f"{category}_{name}".upper()
-                for status_id, category, name in rows
+                status_id: name.upper()
+                for status_id, name in rows
             },
         )
 
@@ -80,44 +80,27 @@ class DatabaseSchemaTests(unittest.TestCase):
     def test_paid_payment_status_constant_matches_schema(self) -> None:
         self.assertEqual(
             self.connection.execute(
-                "SELECT statusID FROM status "
-                "WHERE category = 'payment' AND name = 'Paid'"
+                "SELECT statusID FROM status WHERE name = 'Completed'"
             ).fetchone()[0],
             DatabaseValues.PAYMENT_STATUS_ID_PAID,
         )
 
-    def test_order_statuses_match_schema(self) -> None:
-        statuses = {
-            row[0]
-            for row in self.connection.execute(
-                "SELECT name FROM status WHERE category = 'order'"
-            )
-        }
-        self.assertEqual(statuses, {status.value for status in OrderStatus})
+    def test_order_status_names_exist_in_schema(self) -> None:
+        statuses = {row[0] for row in self.connection.execute("SELECT name FROM status")}
+        self.assertEqual(statuses, {"Pending", "Completed", "Cancelled"})
         self.assertEqual(
             self.connection.execute(
-                "SELECT name FROM status WHERE statusID = ? AND category = 'order'",
+                "SELECT name FROM status WHERE statusID = ?",
                 (DatabaseValues.ORDER_STATUS_ID_PENDING,),
             ).fetchone(),
             (OrderStatus.PENDING.value,),
         )
-
-    def test_payment_statuses_match_schema(self) -> None:
-        statuses = {
-            row[0]
-            for row in self.connection.execute(
-                "SELECT name FROM status WHERE category = 'payment'"
-            )
-        }
-        self.assertEqual(statuses, {status.value for status in PaymentStatus})
+        self.assertLessEqual(
+            {status.value for status in OrderStatus}, statuses
+        )
 
     def test_event_statuses_exist_in_schema(self) -> None:
-        statuses = {
-            row[0]
-            for row in self.connection.execute(
-                "SELECT name FROM status WHERE category = 'event'"
-            )
-        }
+        statuses = {row[0] for row in self.connection.execute("SELECT name FROM status")}
         event = Event(1, "Ride", "Group ride", "Park", datetime(2026, 11, 1), 5)
         self.assertIn(event.status, statuses)
         event.cancel()
@@ -160,7 +143,6 @@ class DatabaseSchemaTests(unittest.TestCase):
     def test_foreign_keys_are_defined_for_expected_relationships(self) -> None:
         status_keys = {
             ("statusID", "status", "statusID"),
-            ("category", "status", "category"),
         }
         expected_foreign_keys = {
             "event": {("admin_id", "admin", "admin_id")} | status_keys,
@@ -227,8 +209,7 @@ class DatabaseSchemaTests(unittest.TestCase):
                  statusID)
                 VALUES (
                     7, 6, '2026-11-03', 17.0, 'Cash',
-                    (SELECT statusID FROM status
-                     WHERE category = 'payment' AND name = 'Paid')
+                    2
                 );
             """
         )
@@ -336,76 +317,22 @@ class DatabaseSchemaTests(unittest.TestCase):
                     self.connection.execute(statement, parameters)
                 self.connection.rollback()
 
-    def test_status_must_match_each_tables_constant_category(self) -> None:
+    def test_status_must_exist_in_status_table(self) -> None:
         self.connection.executescript(
             """
             INSERT INTO admin (admin_id, name) VALUES (1, 'Morgan Admin');
             INSERT INTO customer (customer_id, name) VALUES (2, 'Casey Customer');
-            INSERT INTO event (event_id, admin_id, name, statusID)
-                VALUES (
-                    3, 1, 'Community Ride',
-                    (SELECT statusID FROM status
-                     WHERE category = 'event' AND name = 'Scheduled')
-                );
-            INSERT INTO appointment (appointment_id, customer_id, statusID)
-                VALUES (
-                    4, 2,
-                    (SELECT statusID FROM status
-                     WHERE category = 'appointment' AND name = 'Booked')
-                );
-            INSERT INTO orders (order_id, customer_id, statusID)
-                VALUES (
-                    6, 2,
-                    (SELECT statusID FROM status
-                     WHERE category = 'order' AND name = 'Pending')
-                );
-            INSERT INTO payment
-                (order_id, paymentDateTime, amount, paymentMethod, statusID)
-                VALUES (
-                    6, '2026-11-03', 17.0, 'Cash',
-                    (SELECT statusID FROM status
-                     WHERE category = 'payment' AND name = 'Paid')
-                );
             """
         )
-        categories = {
-            table: self.connection.execute(
-                f"SELECT category FROM {table}"
-            ).fetchone()[0]
-            for table in ("event", "appointment", "orders", "payment")
-        }
-        self.assertEqual(
-            categories,
-            {
-                "event": "event",
-                "appointment": "appointment",
-                "orders": "order",
-                "payment": "payment",
-            },
-        )
-
         invalid_inserts = (
-            "INSERT INTO event (admin_id, name, statusID) "
-            "VALUES (1, 'Wrong', "
-            "(SELECT statusID FROM status WHERE category = 'payment'))",
-            "INSERT INTO appointment (customer_id, statusID) "
-            "VALUES (2, (SELECT statusID FROM status WHERE category = 'event'))",
-            "INSERT INTO orders (customer_id, statusID) "
-            "VALUES (2, (SELECT statusID FROM status WHERE category = 'event'))",
-            "INSERT INTO payment "
-            "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
-            "VALUES (6, '2026-11-03', 1.0, 'Cash', "
-            "(SELECT statusID FROM status WHERE category = 'appointment'))",
-            "INSERT INTO orders (customer_id, statusID, category) "
-            "VALUES (2, "
-            "(SELECT statusID FROM status WHERE category = 'payment'), "
-            "'payment')",
+            "INSERT INTO event (admin_id, name, statusID) VALUES (1, 'Wrong', 99)",
+            "INSERT INTO appointment (customer_id, statusID) VALUES (2, 99)",
+            "INSERT INTO orders (customer_id, statusID) VALUES (2, 99)",
         )
         for statement in invalid_inserts:
             with self.subTest(statement=statement):
                 with self.assertRaises(sqlite3.IntegrityError):
                     self.connection.execute(statement)
-
     def test_event_registration_tracks_unique_customer_per_event(self) -> None:
         self.connection.executescript(
             """

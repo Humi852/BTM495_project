@@ -174,7 +174,7 @@ def _events(
                 {
                     DatabaseColumns.NAME: name.strip(),
                     DatabaseColumns.PARTICIPANT_LIMIT: limit,
-                    DatabaseColumns.STATUS_ID: StatusID.EVENT_SCHEDULED,
+                    DatabaseColumns.STATUS_ID: StatusID.PENDING,
                 },
             )
         return 201, {"status": "ok", "event_id": result.lastrowid}

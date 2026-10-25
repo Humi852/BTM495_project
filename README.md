@@ -54,79 +54,66 @@ the `password_hash` column. `login` checks both Admin and Customer accounts
 using only email and password; it returns the account only when exactly one
 role matches. Passwords must be at least eight characters.
 
-## Run the Python payment example
+## Quick start
 
-From the project root, run:
+**Step 1. Clone the project**
 
-```powershell
-python main.py
+```
+git clone https://github.com/Humi852/BTM495_project.git
+cd BTM495_project
 ```
 
-Follow the prompts to choose credit-card payment or cash payment. This is a
-mock payment flow; it does not contact a bank.
+**Step 2. Run the setup script (one line)**
 
-## Run the local website
+It creates the Python environment (skipped if it already exists), starts the
+local website, and opens it in your browser. Requires Python 3.10 or newer.
 
-From the project root, run:
+Windows:
 
-```powershell
-python run_local_website.py
+```
+setup.bat
 ```
 
-The launcher starts a local server and attempts to open the site in your
-default browser. If it does not open automatically, visit:
+macOS / Linux:
 
-```text
-http://localhost:8765/
+```
+bash setup.sh
 ```
 
-The page shows the SQLite table names, orders, and existing payment history.
-Use **Test profile login** with the local demo credentials
-`login@example.com` / `1234`, or with another existing Admin or Customer
-account. The launcher creates the demo Customer account if it is missing and
-does not replace an existing account with that email. This deliberately weak
-password is for the local dry-run only; keep the server bound to loopback and
-do not reuse it elsewhere. The form reports whether the credentials match;
-it does not create a persistent signed-in session.
+Press `Ctrl+C` in the terminal to stop the server. If the browser does not
+open, go to `http://localhost:8765/`.
 
-The server console reports startup steps (database initialization and server
-readiness), concise request durations, and human-readable summaries of backend
-inputs, outputs, and SQL query results. It does not print raw JSON payloads or
-bound SQL values. HTTP status codes are shown as readable descriptions, and
-warning/error messages are colored in terminals that support ANSI colors.
-Verbose default HTTP access lines are suppressed.
+**Step 3. Try the features in the browser**
 
-Select **Make a payment** to open the payment form. If there is no unpaid
-order, the website creates a $50 sample order in SQLite so that you can try
-the form. The sample order remains in the database.
+| Section on the page | What to try |
+| --- | --- |
+| Test profile login | Log in with `login@example.com` / `1234`. |
+| Database structure | See all tables and row counts. `status` has 3 rows: Pending, Completed, Cancelled. Click **Refresh data** to reload. |
+| Orders | Click **Make a payment** to create a $50 sample order. Use the edit and delete icons on a row, or **Remove all orders**. |
+| Mock credit card | The form is prefilled with a valid test card. Click **Review payment** and confirm. Any other card number is declined. |
+| Payment history | See paid payments. Use the edit and delete icons, or **Remove all payments**. |
+| Inventory | Click **Save item** to add or update an item. Click the history icon to see stock changes (who, when, why). Use the delete icon to remove it. |
+| Event registration | Click **Add sample event (limit 2)**, then register customer IDs until it is full. Duplicate and over-limit registrations are rejected. Unregister with the `🗑 #id` button. |
 
-Only the card number `4242424242424242` is approved by the mock gateway. Use a
-valid expiration date in `MM/YY` format and a three-digit security code. Other
-card numbers are declined. When a payment is declined, the form explains the
-result and the order remains unpaid.
-
-Payment attempts and card details are not stored in the database. No external
-bank or payment service is contacted. Press `Ctrl+C` in the server terminal to
-stop the website. To use a different port, for example, run:
-
-```powershell
-python run_local_website.py --port 8766
-```
+No real payment is made and card details are never stored.
 
 ## Run the tests
 
-Run the local website tests:
-
-```powershell
-python -m unittest discover -s tests -p "test_local_website_api.py"
+```
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
-Run the payment, user-profile, and domain-model unit tests, followed by the
-admin cash-payment demo:
+The last line should say `OK`. Warning and error log lines in the middle of
+the run are expected. The tests use temporary databases, so they do not change
+your data.
 
-```powershell
-python tests\unitTests\run_unit_tests.py
-```
+## Other
 
-The second command prints the unit-test pass count, then shows the manual cash
-payment moving from **Pending** to **Paid** after admin confirmation.
+- Delete `database/lpvr.db` (after stopping the server) to start with a fresh
+  database.
+- Use another port with `bash setup.sh --port 8766` or
+  `setup.bat --port 8766`.
+- A single shared `status` table (`1 = Pending`, `2 = Completed`,
+  `3 = Cancelled`) is used by events, appointments, orders, and payments. See
+  `StatusID` in `backend/utils/constants.py`.
+- `python main.py` runs the command-line mock payment example.

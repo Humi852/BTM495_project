@@ -87,6 +87,50 @@ class InventoryListTests(unittest.TestCase):
             columns = [row[1] for row in connection.execute("PRAGMA table_info(item)")]
         self.assertNotIn("stock_quantity", columns)
 
+    def test_old_category_status_tables_are_migrated(self) -> None:
+        legacy = Path(self.temp_dir.name) / "legacy_status.db"
+        with closing(sqlite3.connect(legacy)) as connection:
+            connection.executescript(
+                "CREATE TABLE status (statusID INTEGER, category TEXT NOT NULL, name TEXT NOT NULL,"
+                " PRIMARY KEY (statusID, category));"
+                "INSERT INTO status VALUES (1,'event','Scheduled'),(5,'appointment','Cancelled'),"
+                "(7,'order','Pending'),(11,'payment','Paid');"
+                "CREATE TABLE event (event_id INTEGER PRIMARY KEY, admin_id INTEGER, location TEXT,"
+                " name TEXT NOT NULL, description TEXT, eventDateTime DATETIME,"
+                " participantLimit INTEGER NOT NULL DEFAULT 0, statusID INTEGER,"
+                " category TEXT NOT NULL DEFAULT 'event',"
+                " FOREIGN KEY (statusID, category) REFERENCES status(statusID, category));"
+                "CREATE TABLE appointment (appointment_id INTEGER PRIMARY KEY, customer_id INTEGER,"
+                " appointmentTime DATETIME, description TEXT, statusID INTEGER,"
+                " category TEXT NOT NULL DEFAULT 'appointment');"
+                "CREATE TABLE orders (order_id INTEGER PRIMARY KEY, customer_id INTEGER,"
+                " orderDateTime DATETIME, totalAmount REAL, statusID INTEGER,"
+                " category TEXT NOT NULL DEFAULT 'order',"
+                " FOREIGN KEY (statusID, category) REFERENCES status(statusID, category));"
+                "CREATE TABLE payment (payment_id INTEGER PRIMARY KEY, order_id INTEGER,"
+                " paymentDateTime DATETIME, amount REAL, paymentMethod TEXT, statusID INTEGER NOT NULL,"
+                " category TEXT NOT NULL DEFAULT 'payment',"
+                " FOREIGN KEY (order_id) REFERENCES orders(order_id),"
+                " FOREIGN KEY (statusID, category) REFERENCES status(statusID, category));"
+                "INSERT INTO event (event_id, name, statusID) VALUES (1, 'Ride', 1);"
+                "INSERT INTO appointment (appointment_id, statusID) VALUES (1, 5);"
+                "INSERT INTO orders (order_id, statusID) VALUES (1, 7);"
+                "INSERT INTO payment (payment_id, order_id, paymentDateTime, amount, paymentMethod, statusID)"
+                " VALUES (1, 1, '2025-01-01', 5.0, 'Cash', 11);"
+            )
+            connection.commit()
+        initialize_database(legacy)
+        initialize_database(legacy)  # idempotent
+        with closing(sqlite3.connect(legacy)) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM status").fetchone(), (3,))
+            self.assertEqual(
+                [connection.execute(f"SELECT statusID FROM {t}").fetchone()[0]
+                 for t in ("event", "appointment", "orders", "payment")],
+                [1, 3, 1, 2],
+            )
+            tables = {r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            self.assertFalse({t for t in tables if t.endswith("_legacy")})
+
     def test_add_find_and_list_items_use_the_item_table(self) -> None:
         self.assertEqual(self.inventory.listItems().data, [])
         self.assertEqual(self.inventory.findItem(10).msg, "Item not found.")

@@ -64,7 +64,7 @@ class OrderServiceTests(unittest.TestCase):
             self.assertEqual(
                 connection.execute(
                     "SELECT status.name FROM orders "
-                    "JOIN status USING (statusID, category) WHERE order_id = 1"
+                    "JOIN status USING (statusID) WHERE order_id = 1"
                 ).fetchone(),
                 (order.status,),
             )

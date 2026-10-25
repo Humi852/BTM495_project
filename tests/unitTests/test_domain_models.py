@@ -33,7 +33,7 @@ class EventTests(unittest.TestCase):
     def test_create_update_and_cancel_event(self) -> None:
         events: dict[int, Event] = {}
 
-        self.assertEqual(self.event.status, "Scheduled")
+        self.assertEqual(self.event.status, "Pending")
         self.assertEqual(self.event.createEvent(events).msg, "Event created successfully.")
         self.assertIs(events[1], self.event)
         self.assertEqual(self.event.createEvent(events).msg, "Invalid event information.")
@@ -63,7 +63,7 @@ class EventTests(unittest.TestCase):
         self.assertTrue(response.success)
         self.assertEqual(self.event.name, "Bike Maintenance Clinic")
         self.assertEqual(self.event.eventID, 1)
-        self.assertEqual(self.event.status, "Scheduled")
+        self.assertEqual(self.event.status, "Pending")
         self.assertFalse(hasattr(self.event, "unknown"))
 
     def test_appointment_update_applies_only_real_differences(self) -> None:
@@ -107,7 +107,7 @@ class EventTests(unittest.TestCase):
 
         details = appointment.getDetails().data
         self.assertEqual(details["appointmentID"], 1)
-        self.assertEqual(details["statusID"], StatusID.APPOINTMENT_BOOKED)
+        self.assertEqual(details["statusID"], StatusID.PENDING)
 
         appointment.cancelAppointment()
         self.assertEqual(
@@ -121,8 +121,8 @@ class EventTests(unittest.TestCase):
         self.assertIsNone(appointment.statusID)
 
         self.assertTrue(appointment.createAppointment(appointments).success)
-        self.assertEqual(appointment.statusID, StatusID.APPOINTMENT_BOOKED)
-        self.assertEqual(appointment.statusID, 4)
+        self.assertEqual(appointment.statusID, StatusID.PENDING)
+        self.assertEqual(appointment.statusID, StatusID.PENDING)
         self.assertFalse(appointment.createAppointment(appointments).success)
         self.assertFalse(
             Appointment(3, 2, datetime(2026, 11, 2), " ")
@@ -135,7 +135,7 @@ class EventTests(unittest.TestCase):
         self.assertFalse(appointment.setupTimeSlot("soon").success)
 
         self.assertTrue(appointment.cancelAppointment().success)
-        self.assertEqual(appointment.statusID, StatusID.APPOINTMENT_CANCELLED)
+        self.assertEqual(appointment.statusID, StatusID.CANCELLED)
         self.assertFalse(appointment.cancelAppointment().success)
         self.assertFalse(appointment.setupTimeSlot(datetime(2026, 11, 6)).success)
 

@@ -24,7 +24,7 @@ class Appointment:
     def setupTimeSlot(self, appointmentTime: datetime) -> Response:
         if not isinstance(appointmentTime, datetime):
             return Response.warning("Appointment time must be a datetime.")
-        if self.statusID in (StatusID.APPOINTMENT_CANCELLED, StatusID.APPOINTMENT_COMPLETED):
+        if self.statusID in (StatusID.CANCELLED, StatusID.COMPLETED):
             return Response.warning("Appointment can no longer be changed.")
         self.appointmentTime = appointmentTime
         return Response.ok("Appointment time slot set.", self)
@@ -37,7 +37,7 @@ class Appointment:
             or self.appointmentID in appointments
         ):
             return Response.warning("Invalid appointment information.")
-        self.statusID = StatusID.APPOINTMENT_BOOKED
+        self.statusID = StatusID.PENDING
         appointments[self.appointmentID] = self
         return Response.ok("Appointment created successfully.", self)
 
@@ -47,7 +47,7 @@ class Appointment:
 
     def updateAppointment(self, **changes: object) -> Response:
         """Update any updatable fields at once; only real differences are applied."""
-        if self.statusID in (StatusID.APPOINTMENT_CANCELLED, StatusID.APPOINTMENT_COMPLETED):
+        if self.statusID in (StatusID.CANCELLED, StatusID.COMPLETED):
             return Response.warning("Appointment can no longer be changed.")
         unknown = sorted(set(changes) - set(self._UPDATABLE))
         if unknown:
@@ -70,7 +70,7 @@ class Appointment:
         return Response.ok("Appointment updated.", diff)
 
     def cancelAppointment(self) -> Response:
-        if self.statusID != StatusID.APPOINTMENT_BOOKED:
+        if self.statusID != StatusID.PENDING:
             return Response.warning("Only a booked appointment can be cancelled.")
-        self.statusID = StatusID.APPOINTMENT_CANCELLED
+        self.statusID = StatusID.CANCELLED
         return Response.ok("Appointment cancelled successfully.", self)

@@ -25,7 +25,7 @@ class EventRegistrationAPITests(unittest.TestCase):
             connection.executemany(
                 "INSERT INTO event (event_id, name, participantLimit, statusID) "
                 "VALUES (?, 'Ride', ?, ?)",
-                [(1, 2, None), (2, 5, StatusID.EVENT_CANCELLED)],
+                [(1, 2, None), (2, 5, StatusID.CANCELLED)],
             )
             connection.commit()
         self.api = EventRegistrationAPI(self.database_path)

@@ -85,7 +85,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 {"name": "payment", "rows": 0},
                 {"name": "sample", "rows": 2},
                 {"name": "shopping_cart", "rows": 0},
-                {"name": "status", "rows": 12},
+                {"name": "status", "rows": 3},
             ],
         )
 
@@ -227,7 +227,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 "INSERT INTO payment "
                 "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
                 "VALUES (?, ?, ?, ?, (SELECT statusID FROM status "
-                "WHERE category = 'payment' AND name = 'Paid'))",
+                "WHERE name = 'Completed'))",
                 (101, "2025-01-01 12:00:00", 42.5, "Credit Card"),
             )
             connection.commit()
@@ -253,12 +253,12 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
 
     def test_dashboard_does_not_mark_pending_or_failed_payments_paid(self) -> None:
         with closing(sqlite3.connect(self.database_path)) as connection:
-            for status_name in ("Pending", "Failed"):
+            for status_name in ("Pending", "Cancelled"):
                 connection.execute(
                     "INSERT INTO payment "
                     "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
                     "VALUES (?, ?, ?, ?, (SELECT statusID FROM status "
-                    "WHERE category = 'payment' AND name = ?))",
+                    "WHERE name = ?))",
                     (101, "2025-01-01 12:00:00", 42.5, "Cash", status_name),
                 )
             connection.commit()
@@ -321,7 +321,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
                 "VALUES (?, '2025-01-01 12:00:00', 42.5, 'Credit Card', "
                 "(SELECT statusID FROM status "
-                "WHERE category = 'payment' AND name = 'Paid'))",
+                "WHERE name = 'Completed'))",
                 (order_id,),
             )
             connection.commit()

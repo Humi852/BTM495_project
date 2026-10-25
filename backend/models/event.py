@@ -13,8 +13,8 @@ class Event:
     eventDateTime: datetime = field(metadata={"updatable": True})
     participantLimit: int = field(metadata={"updatable": True})
     adminID: int | None = None
-    # Matches the 'event' category names in the schema's status table.
-    status: str = field(default="Scheduled", init=False)
+    # Matches a name in the schema's status table.
+    status: str = field(default="Pending", init=False)
 
     def createEvent(self, events: dict[int, "Event"]) -> Response:
         if (

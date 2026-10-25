@@ -25,33 +25,16 @@ DROP TRIGGER IF EXISTS admin_email_update_unique;
 DROP TRIGGER IF EXISTS customer_email_insert_unique;
 DROP TRIGGER IF EXISTS customer_email_update_unique;
 
--- Status Table: statusID values are scoped by category so each table can only use its own statuses.
+-- Status Table: one generic set of statuses shared by event, appointment, order and payment.
 CREATE TABLE IF NOT EXISTS status (
     statusID INTEGER PRIMARY KEY,
-    category TEXT NOT NULL CHECK (category IN ('event','appointment','order','payment')),
-    name TEXT NOT NULL,
-    UNIQUE (category, name),
-    UNIQUE (statusID, category)  -- Ensure statusID is unique within each category
+    name TEXT NOT NULL UNIQUE
 );
 
-
-INSERT OR IGNORE INTO status (statusID, category, name) VALUES
--- Event Statuses
-    (1, 'event', 'Scheduled'),
-    (2, 'event', 'Completed'),
-    (3, 'event', 'Cancelled'),
--- Appointment Statuses
-    (4, 'appointment', 'Booked'),
-    (5, 'appointment', 'Cancelled'),
-    (6, 'appointment', 'Completed'),
--- Order Statuses
-    (7, 'order', 'Pending'),
-    (8, 'order', 'Cancelled'),
-    (9, 'order', 'Completed'),
--- Payment Statuses
-    (10, 'payment', 'Pending'),
-    (11, 'payment', 'Paid'),
-    (12, 'payment', 'Failed');
+INSERT OR IGNORE INTO status (statusID, name) VALUES
+    (1, 'Pending'),
+    (2, 'Completed'),
+    (3, 'Cancelled');
 
 -- 3. Event Table
 CREATE TABLE IF NOT EXISTS event (
@@ -63,9 +46,8 @@ CREATE TABLE IF NOT EXISTS event (
     eventDateTime DATETIME,
     participantLimit INTEGER NOT NULL DEFAULT 0 CHECK (participantLimit >= 0),
     statusID INTEGER,
-    category TEXT NOT NULL DEFAULT 'event' CHECK (category = 'event'),
     FOREIGN KEY (admin_id) REFERENCES admin(admin_id),
-    FOREIGN KEY (statusID, category) REFERENCES status(statusID, category)
+    FOREIGN KEY (statusID) REFERENCES status(statusID)
 );
 
 -- Event Registration Table: tracks which customers joined which events.
@@ -84,9 +66,8 @@ CREATE TABLE IF NOT EXISTS appointment (
     appointmentTime DATETIME,
     description TEXT,
     statusID INTEGER,
-    category TEXT NOT NULL DEFAULT 'appointment' CHECK (category = 'appointment'),
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
-    FOREIGN KEY (statusID, category) REFERENCES status(statusID, category)
+    FOREIGN KEY (statusID) REFERENCES status(statusID)
 );
 
 -- 5. Order Table
@@ -96,9 +77,8 @@ CREATE TABLE IF NOT EXISTS orders (
     orderDateTime DATETIME,
     totalAmount REAL,
     statusID INTEGER,
-    category TEXT NOT NULL DEFAULT 'order' CHECK (category = 'order'),
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
-    FOREIGN KEY (statusID, category) REFERENCES status(statusID, category)
+    FOREIGN KEY (statusID) REFERENCES status(statusID)
 );
 
 -- 6. Item Table
@@ -162,7 +142,6 @@ CREATE TABLE IF NOT EXISTS payment (
     amount REAL NOT NULL CHECK (amount > 0),
     paymentMethod TEXT NOT NULL,
     statusID INTEGER NOT NULL,
-    category TEXT NOT NULL DEFAULT 'payment' CHECK (category = 'payment'),
     FOREIGN KEY (order_id) REFERENCES orders(order_id),
-    FOREIGN KEY (statusID, category) REFERENCES status(statusID, category)
+    FOREIGN KEY (statusID) REFERENCES status(statusID)
 );

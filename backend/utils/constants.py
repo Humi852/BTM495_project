@@ -58,24 +58,15 @@ class DatabaseColumns:
 
 
 class StatusID(IntEnum):
-    # One generic type mirroring every row of the schema's status table;
-    # the member name is <category>_<status name>.
-    EVENT_SCHEDULED = 1
-    EVENT_COMPLETED = 2
-    EVENT_CANCELLED = 3
-    APPOINTMENT_BOOKED = 4
-    APPOINTMENT_CANCELLED = 5
-    APPOINTMENT_COMPLETED = 6
-    ORDER_PENDING = 7
-    ORDER_CANCELLED = 8
-    ORDER_COMPLETED = 9
-    PAYMENT_PENDING = 10
-    PAYMENT_PAID = 11
-    PAYMENT_FAILED = 12
+    # Mirrors the schema's status table, shared by events, appointments, orders and payments.
+    PENDING = 1
+    COMPLETED = 2
+    CANCELLED = 3
 
 class DatabaseValues:
-    ORDER_STATUS_ID_PENDING = StatusID.ORDER_PENDING
-    PAYMENT_STATUS_ID_PAID = StatusID.PAYMENT_PAID
+    ORDER_STATUS_ID_PENDING = StatusID.PENDING
+    # A payment that went through is stored as Completed.
+    PAYMENT_STATUS_ID_PAID = StatusID.COMPLETED
 
 
 DATABASE_SCHEMA_COLUMNS = {
@@ -104,7 +95,6 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.EVENT_DATE_TIME,
         DatabaseColumns.PARTICIPANT_LIMIT,
         DatabaseColumns.STATUS_ID,
-        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.EVENT_REGISTRATION: (
         DatabaseColumns.EVENT_ID,
@@ -116,7 +106,6 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.APPOINTMENT_TIME,
         DatabaseColumns.DESCRIPTION,
         DatabaseColumns.STATUS_ID,
-        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.ORDERS: (
         DatabaseColumns.ORDER_ID,
@@ -124,7 +113,6 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.ORDER_DATE_TIME,
         DatabaseColumns.TOTAL_AMOUNT,
         DatabaseColumns.STATUS_ID,
-        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.ITEM: (
         DatabaseColumns.ITEM_ID,
@@ -167,11 +155,9 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.AMOUNT,
         DatabaseColumns.PAYMENT_METHOD,
         DatabaseColumns.PAYMENT_STATUS_ID,
-        DatabaseColumns.CATEGORY,
     ),
     DatabaseTables.STATUS: (
         DatabaseColumns.STATUS_ID,
-        DatabaseColumns.CATEGORY,
         DatabaseColumns.NAME,
     ),
 }

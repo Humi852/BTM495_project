@@ -20,7 +20,7 @@ class EventRegistrationAPI:
             if event is None:
                 return Response.warning("Event not found.")
             participant_limit, status_id = event
-            if status_id not in (None, StatusID.EVENT_SCHEDULED):
+            if status_id not in (None, StatusID.PENDING):
                 return Response.warning("Event is not open for registration.")
             customer = session.select_one(
                 DatabaseTables.CUSTOMER,
