@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from backend.models.event import Event
 from backend.models.order import OrderStatus
 from backend.models.payment import PaymentStatus
-from backend.utils.constants import DATABASE_SCHEMA_COLUMNS, DatabaseValues
+from backend.utils.constants import DATABASE_SCHEMA_COLUMNS, DatabaseValues, StatusID
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,18 @@ class DatabaseSchemaTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.connection.close()
+
+    def test_status_id_enum_matches_status_table(self) -> None:
+        rows = self.connection.execute(
+            "SELECT statusID, category, name FROM status"
+        ).fetchall()
+        self.assertEqual(
+            {member.value: member.name for member in StatusID},
+            {
+                status_id: f"{category}_{name}".upper()
+                for status_id, category, name in rows
+            },
+        )
 
     def test_all_schema_tables_are_created(self) -> None:
         tables = {
@@ -43,6 +55,8 @@ class DatabaseSchemaTests(unittest.TestCase):
                 "event_registration",
                 "appointment",
                 "item",
+                "inventory",
+                "inventory_history",
                 "shopping_cart",
                 "orders",
                 "order_item",
@@ -117,6 +131,8 @@ class DatabaseSchemaTests(unittest.TestCase):
             "event_registration": ["event_id", "customer_id"],
             "appointment": ["appointment_id"],
             "item": ["item_id"],
+            "inventory": ["item_id"],
+            "inventory_history": ["history_id"],
             "shopping_cart": ["customer_id"],
             "orders": ["order_id"],
             "order_item": ["order_id", "item_id"],
@@ -155,6 +171,14 @@ class DatabaseSchemaTests(unittest.TestCase):
             "appointment": {("customer_id", "customer", "customer_id")} | status_keys,
             "orders": {("customer_id", "customer", "customer_id")} | status_keys,
             "shopping_cart": {("customer_id", "customer", "customer_id")},
+            "inventory": {
+                ("item_id", "item", "item_id"),
+                ("admin_id", "admin", "admin_id"),
+            },
+            "inventory_history": {
+                ("item_id", "item", "item_id"),
+                ("admin_id", "admin", "admin_id"),
+            },
             "order_item": {
                 ("order_id", "orders", "order_id"),
                 ("item_id", "item", "item_id"),
@@ -186,8 +210,12 @@ class DatabaseSchemaTests(unittest.TestCase):
                 (appointment_id, customer_id, appointmentTime, description)
                 VALUES (4, 2, '2026-11-02', 'Bike tune-up');
             INSERT INTO item
-                (item_id, name, description, price, category, brand, stock_quantity)
-                VALUES (5, 'Road Tube', '700c inner tube', 8.5, 'Parts', 'Generic', 10);
+                (item_id, name, description, price, category, brand)
+                VALUES (5, 'Road Tube', '700c inner tube', 8.5, 'Parts', 'Generic');
+            INSERT INTO inventory (item_id, quantity, admin_id) VALUES (5, 10, 1);
+            INSERT INTO inventory_history
+                (item_id, old_quantity, new_quantity, admin_id, reason)
+                VALUES (5, NULL, 10, 1, 'Initial stock');
             INSERT INTO shopping_cart (customer_id, items_json)
                 VALUES (2, '[{"item_id":5,"quantity":2,"price":8.5}]');
             INSERT INTO orders (order_id, customer_id, orderDateTime, totalAmount)

@@ -77,6 +77,8 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 {"name": "customer", "rows": 1},
                 {"name": "event", "rows": 0},
                 {"name": "event_registration", "rows": 0},
+                {"name": "inventory", "rows": 0},
+                {"name": "inventory_history", "rows": 0},
                 {"name": "item", "rows": 0},
                 {"name": "order_item", "rows": 0},
                 {"name": "orders", "rows": 1},
@@ -327,6 +329,70 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
     def _count(self, table: str) -> int:
         with closing(sqlite3.connect(self.database_path)) as connection:
             return connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
+    def _json(self, method: str, path: str, payload: dict | None = None):
+        with self._call(method, path, payload) as response:
+            return response.status, json.load(response)
+
+    def test_inventory_routes_cover_every_inventory_api(self) -> None:
+        status, body = self._json(
+            "POST",
+            "/api/inventory",
+            {"item_id": 5, "name": "Tube", "price": 8.5, "stock_quantity": 4},
+        )
+        self.assertEqual(status, 201)
+        status, body = self._json(
+            "PATCH",
+            "/api/inventory/5",
+            {"price": 9, "stock_quantity": 2, "reason": "Cycle count"},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body["data"]["stockQuantity"], [4, 2])
+        self.assertEqual(self._json("PATCH", "/api/inventory/5", {"price": 9})[0], 400)
+
+        _, body = self._json("GET", "/api/inventory")
+        self.assertEqual(
+            [(i["item_id"], i["price"], i["stock_quantity"]) for i in body["items"]],
+            [(5, 9, 2)],
+        )
+        _, body = self._json("GET", "/api/inventory/5/history")
+        self.assertEqual(
+            [(h["oldQuantity"], h["newQuantity"]) for h in body["history"]],
+            [(None, 4), (4, 2)],
+        )
+
+        self.assertEqual(self._json("GET", "/api/inventory/9/history")[0], 404)
+        self.assertEqual(self._json("POST", "/api/inventory", {"bogus": 1})[0], 400)
+        self.assertEqual(self._json("PATCH", "/api/inventory/5", {"bogus": 1})[0], 400)
+        self.assertEqual(self._json("DELETE", "/api/inventory/5")[0], 200)
+        self.assertEqual(self._json("DELETE", "/api/inventory/5")[0], 404)
+        self.assertEqual(self._count("inventory"), 0)
+        self.assertEqual(self._count("inventory_history"), 0)
+
+    def test_event_registration_routes(self) -> None:
+        status, body = self._json(
+            "POST", "/api/events", {"name": "Ride", "participant_limit": 1}
+        )
+        self.assertEqual(status, 201)
+        event_id = body["event_id"]
+        self.assertEqual(self._json("POST", "/api/events", {"name": " "})[0], 400)
+
+        register = {"event_id": event_id, "customer_id": 1}
+        self.assertEqual(self._json("POST", "/api/event-registrations", register)[0], 201)
+        self.assertEqual(self._json("POST", "/api/event-registrations", register)[0], 400)
+        self.assertEqual(
+            self._json("POST", "/api/event-registrations", {"event_id": "x"})[0], 400
+        )
+        _, body = self._json("GET", "/api/events")
+        self.assertEqual(body["events"][0]["customer_ids"], [1])
+        self.assertEqual(body["customers"][0]["customer_id"], 1)
+
+        path = f"/api/event-registrations/{event_id}/1"
+        self.assertEqual(self._json("DELETE", path)[0], 200)
+        self.assertEqual(self._json("DELETE", path)[0], 404)
+        self.assertEqual(self._json("DELETE", "/api/event-registrations/x/1")[0], 404)
+        self.assertEqual(self._json("DELETE", f"/api/events/{event_id}")[0], 200)
+        self.assertEqual(self._json("DELETE", f"/api/events/{event_id}")[0], 404)
 
     def test_edit_order_and_payment_amounts(self) -> None:
         self._add_payment()

@@ -222,6 +222,7 @@ async function loadDashboard() {
     renderOrders(result.orders);
     renderPayments(result.payments);
     setStatus("Database connected", "ok");
+    await Promise.all([loadInventory(), loadEvents()]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     databaseName.textContent = "Could not load database data";
@@ -390,6 +391,233 @@ async function submitPayment(event) {
   }
 }
 
+function showMessage(target, text, isError) {
+  target.textContent = text;
+  target.className = isError ? "error" : "muted";
+}
+
+async function callApi(method, path, body) {
+  const response = await fetch(path, {
+    method,
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok || result.status !== "ok") {
+    throw new Error(result.message || `Request failed with HTTP ${response.status}`);
+  }
+  return result;
+}
+
+function iconButton(label, text, danger, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `icon-button ${danger ? "button-danger" : "button-secondary"}`;
+  button.textContent = text;
+  button.title = button.ariaLabel = label;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function textRow(values) {
+  const row = document.createElement("tr");
+  for (const value of values) {
+    const cell = document.createElement("td");
+    cell.textContent = value;
+    row.append(cell);
+  }
+  return row;
+}
+
+const inventoryResults = document.querySelector("#inventory-results");
+const historyResults = document.querySelector("#history-results");
+const inventoryMessage = document.querySelector("#inventory-message");
+const itemForm = document.querySelector("#item-form");
+let inventoryItems = [];
+
+async function loadInventory() {
+  try {
+    inventoryItems = (await callApi("GET", "/api/inventory")).items;
+  } catch (error) {
+    appendMessageRow(inventoryResults, 5, "Inventory unavailable.");
+    showMessage(inventoryMessage, error.message, true);
+    return;
+  }
+  if (inventoryItems.length === 0) {
+    appendMessageRow(inventoryResults, 5, "No items yet. Save one above.");
+    return;
+  }
+  inventoryResults.replaceChildren();
+  for (const item of inventoryItems) {
+    const row = textRow([
+      `#${item.item_id}`,
+      item.name,
+      formatAmount(item.price),
+      item.stock_quantity === null ? "Not tracked" : String(item.stock_quantity),
+    ]);
+    const cell = document.createElement("td");
+    cell.className = "row-actions";
+    cell.append(
+      iconButton(`Edit item #${item.item_id}`, "✎", false, () => fillItemForm(item)),
+      iconButton(`History of item #${item.item_id}`, "🕘", false, () => loadHistory(item.item_id)),
+      iconButton(`Delete item #${item.item_id}`, "🗑", true, () => deleteItem(item.item_id)),
+    );
+    row.append(cell);
+    inventoryResults.append(row);
+  }
+}
+
+function fillItemForm(item) {
+  itemForm.querySelector("#item-id").value = item.item_id;
+  itemForm.querySelector("#item-name").value = item.name;
+  itemForm.querySelector("#item-price").value = item.price;
+  itemForm.querySelector("#item-stock").value = item.stock_quantity ?? "";
+  itemForm.querySelector("#item-name").focus();
+}
+
+async function loadHistory(itemId) {
+  try {
+    const { history } = await callApi("GET", `/api/inventory/${itemId}/history`);
+    document.querySelector("#history-title").textContent = `Stock history for item #${itemId}`;
+    if (history.length === 0) {
+      appendMessageRow(historyResults, 5, "No stock changes recorded.");
+      return;
+    }
+    historyResults.replaceChildren(
+      ...history.map((entry) =>
+        textRow([
+          entry.createdAt,
+          entry.oldQuantity ?? "—",
+          entry.newQuantity ?? "not tracked",
+          entry.adminId ?? "system",
+          entry.reason ?? "",
+        ]),
+      ),
+    );
+  } catch (error) {
+    showMessage(inventoryMessage, error.message, true);
+  }
+}
+
+async function saveItem(event) {
+  event.preventDefault();
+  const field = (id) => itemForm.querySelector(id).value.trim();
+  const itemId = Number(field("#item-id"));
+  const stock = field("#item-stock");
+  const admin = field("#item-admin");
+  const audit = {
+    admin_id: admin === "" ? null : Number(admin),
+    reason: field("#item-reason") || null,
+  };
+  const fields = {
+    name: field("#item-name"),
+    price: Number(field("#item-price")),
+    stock_quantity: stock === "" ? null : Number(stock),
+  };
+  const exists = inventoryItems.some((item) => item.item_id === itemId);
+  try {
+    const result = exists
+      ? await callApi("PATCH", `/api/inventory/${itemId}`, { ...fields, ...audit })
+      : await callApi("POST", "/api/inventory", { item_id: itemId, ...fields, ...audit });
+    showMessage(inventoryMessage, result.message, false);
+    await loadInventory();
+    await loadHistory(itemId);
+  } catch (error) {
+    showMessage(inventoryMessage, error.message, true);
+  }
+}
+
+async function deleteItem(itemId) {
+  if (!window.confirm(`Delete item #${itemId}, its stock and its history?`)) {
+    return;
+  }
+  try {
+    showMessage(inventoryMessage, (await callApi("DELETE", `/api/inventory/${itemId}`)).message, false);
+    historyResults.replaceChildren();
+    appendMessageRow(historyResults, 5, "Choose the history icon on an item.");
+    await loadInventory();
+  } catch (error) {
+    showMessage(inventoryMessage, error.message, true);
+  }
+}
+
+const eventResults = document.querySelector("#event-results");
+const registrationMessage = document.querySelector("#registration-message");
+const registrationForm = document.querySelector("#registration-form");
+const registrationEvent = document.querySelector("#registration-event");
+
+async function loadEvents() {
+  let data;
+  try {
+    data = await callApi("GET", "/api/events");
+  } catch (error) {
+    appendMessageRow(eventResults, 4, "Events unavailable.");
+    showMessage(registrationMessage, error.message, true);
+    return;
+  }
+  const customerNames = new Map(data.customers.map((c) => [c.customer_id, c.name]));
+  registrationEvent.replaceChildren(
+    ...data.events.map((event) => new Option(`#${event.event_id} ${event.name}`, event.event_id)),
+  );
+  if (data.events.length === 0) {
+    appendMessageRow(eventResults, 4, "No events yet. Add a sample event.");
+    return;
+  }
+  eventResults.replaceChildren();
+  for (const event of data.events) {
+    const row = textRow([
+      `#${event.event_id} ${event.name}`,
+      `${event.customer_ids.length} / ${event.participant_limit}`,
+      event.customer_ids.map((id) => `#${id} ${customerNames.get(id) ?? ""}`.trim()).join(", ") || "—",
+    ]);
+    const cell = document.createElement("td");
+    cell.className = "row-actions";
+    for (const customerId of event.customer_ids) {
+      cell.append(
+        iconButton(`Unregister customer #${customerId}`, `🗑 #${customerId}`, true, () =>
+          unregister(event.event_id, customerId),
+        ),
+      );
+    }
+    cell.append(iconButton(`Delete event #${event.event_id}`, "🗑 event", true, () => deleteEvent(event.event_id)));
+    row.append(cell);
+    eventResults.append(row);
+  }
+}
+
+async function runRegistration(action) {
+  try {
+    showMessage(registrationMessage, (await action()).message ?? "Done.", false);
+  } catch (error) {
+    showMessage(registrationMessage, error.message, true);
+  }
+  await loadEvents();
+}
+
+const addSampleEvent = () =>
+  runRegistration(() =>
+    callApi("POST", "/api/events", { name: "Community Ride", participant_limit: 2 }),
+  );
+const register = (event) => {
+  event.preventDefault();
+  return runRegistration(() =>
+    callApi("POST", "/api/event-registrations", {
+      event_id: Number(registrationEvent.value),
+      customer_id: Number(document.querySelector("#registration-customer").value),
+    }),
+  );
+};
+const unregister = (eventId, customerId) =>
+  runRegistration(() => callApi("DELETE", `/api/event-registrations/${eventId}/${customerId}`));
+const deleteEvent = (eventId) =>
+  window.confirm(`Delete event #${eventId} and its registrations?`)
+    ? runRegistration(() => callApi("DELETE", `/api/events/${eventId}`))
+    : undefined;
+
+itemForm.addEventListener("submit", saveItem);
+registrationForm.addEventListener("submit", register);
+document.querySelector("#add-event-button").addEventListener("click", addSampleEvent);
 document.querySelector("#delete-all-orders-button").addEventListener("click", () => deleteAll("order"));
 document.querySelector("#delete-all-payments-button").addEventListener("click", () => deleteAll("payment"));
 refreshButton.addEventListener("click", loadDashboard);

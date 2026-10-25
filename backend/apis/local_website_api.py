@@ -6,6 +6,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from backend.apis.local_website_extra_api import handle_route, is_extra_route
 from backend.apis.profile_api import ManageProfile
 from backend.models.payment import Payment, PaymentMethod, PaymentStatus
 from backend.utils.constants import DatabaseColumns, DatabaseTables, DatabaseValues
@@ -220,7 +221,29 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return
 
+    def _extra_route(self, method: str) -> bool:
+        """Serve inventory/event routes; return False when the path is not one."""
+        request_path = urlsplit(self.path).path
+        if not is_extra_route(request_path):
+            return False
+        payload = None
+        if method in ("POST", "PATCH"):
+            try:
+                payload = read_json_object(
+                    self, self.MAX_REQUEST_BYTES, request_name="Request"
+                )
+            except HTTPRequestError as error:
+                self._send_json(
+                    {"status": "error", "message": str(error)}, error.status_code
+                )
+                return True
+        status_code, response = handle_route(DB_PATH, method, request_path, payload)
+        self._send_json(response, status_code)
+        return True
+
     def do_GET(self) -> None:
+        if self._extra_route("GET"):
+            return
         request_path = urlsplit(self.path).path
         if request_path == "/api/status":
             self._send_database_status()
@@ -231,6 +254,8 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_DELETE(self) -> None:
+        if self._extra_route("DELETE"):
+            return
         resource, record_id = self._record_route()
         if resource is None:
             self._send_json({"status": "error", "message": "Not found."}, 404)
@@ -238,6 +263,8 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
         self._modify_records(resource, record_id, None)
 
     def do_PATCH(self) -> None:
+        if self._extra_route("PATCH"):
+            return
         resource, record_id = self._record_route()
         if resource is None or record_id is None:
             self._send_json({"status": "error", "message": "Not found."}, 404)
@@ -323,6 +350,8 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
         self._send_json({"status": "ok"}, 200)
 
     def do_POST(self) -> None:
+        if self._extra_route("POST"):
+            return
         request_path = urlsplit(self.path).path
         if request_path == "/api/sample-orders":
             self._create_sample_order()

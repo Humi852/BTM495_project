@@ -1,12 +1,13 @@
 from datetime import datetime
 from pathlib import Path
 
+from backend.apis.inventory_list_api import InventoryList
 from backend.apis.shopping_cart_api import ShoppingCartAPI
 from backend.models.order import Order
 from backend.models.shopping_cart import ShoppingCart
 from backend.utils.constants import DatabaseColumns, DatabaseTables, DatabaseValues
 from backend.utils.response import Response
-from backend.utils.sqlite import SQLComparison, SQLCondition, SQLiteQuery
+from backend.utils.sqlite import SQLCondition, SQLiteQuery
 from database.sqlite_database import DB_PATH
 
 
@@ -37,17 +38,17 @@ class OrderService:
             database_items: dict[int, int | None] = {}
             for cart_item in cart.items.values():
                 item_id = cart_item.item.itemId
-                row = database.select_one(
+                if database.select_one(
                     DatabaseTables.ITEM,
-                    (DatabaseColumns.STOCK_QUANTITY,),
+                    (DatabaseColumns.ITEM_ID,),
                     where=(SQLCondition(DatabaseColumns.ITEM_ID, item_id),),
-                )
-                if row is None:
+                ) is None:
                     raise ValueError(f"Item {item_id} does not exist.")
-                if row[0] is not None and cart_item.quantity > row[0]:
+                stock = InventoryList.stockOf(database, item_id)
+                if stock is not None and cart_item.quantity > stock:
                     database.rollback()
                     return Response.warning("Item out of stock.")
-                database_items[item_id] = row[0]
+                database_items[item_id] = stock
 
             result = database.insert(
                 DatabaseTables.ORDERS,
@@ -73,26 +74,16 @@ class OrderService:
                     },
                 )
                 database_stock = database_items[item_id]
-                if database_stock is not None:
-                    result = database.update(
-                        DatabaseTables.ITEM,
-                        {
-                            DatabaseColumns.STOCK_QUANTITY: (
-                                database_stock - cart_item.quantity
-                            )
-                        },
-                        where=(
-                            SQLCondition(DatabaseColumns.ITEM_ID, item_id),
-                            SQLCondition(
-                                DatabaseColumns.STOCK_QUANTITY,
-                                cart_item.quantity,
-                                SQLComparison.GREATER_THAN_OR_EQUAL,
-                            ),
-                        ),
+                if database_stock is not None and not (
+                    InventoryList.setQuantityInTransaction(
+                        database,
+                        item_id,
+                        database_stock - cart_item.quantity,
+                        reason=f"Checkout order {order_id}",
                     )
-                    if result.rowcount != 1:
-                        database.rollback()
-                        return Response.warning("Item out of stock.")
+                ):
+                    database.rollback()
+                    return Response.warning("Item out of stock.")
             ShoppingCartAPI.clearInTransaction(database, customerID)
 
         order = Order(order_id, total_amount)

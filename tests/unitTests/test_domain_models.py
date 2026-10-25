@@ -10,15 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.models.event import Event
 from backend.models.appointment import Appointment
-from backend.models.inventory import Inventory as ModelInventory
+from backend.utils.constants import StatusID
 from backend.models.item import Item
 from backend.models.order import Order
 from backend.models.shopping_cart import ShoppingCart
 from backend.apis.shopping_cart_api import ShoppingCartAPI
-from backend.apis.inventory_api import (
-    Inventory,
-    Item as ServiceItem,
-)
 from backend.utils.response import Response, ResponseLevel
 from database.sqlite_database import initialize_database
 
@@ -70,19 +66,78 @@ class EventTests(unittest.TestCase):
         self.assertEqual(self.event.status, "Scheduled")
         self.assertFalse(hasattr(self.event, "unknown"))
 
-    def test_appointment_supports_basic_domain_updates(self) -> None:
-        appointment = Appointment(
-            1,
-            2,
-            datetime(2026, 11, 2),
-            "Bike tune-up",
+    def test_appointment_update_applies_only_real_differences(self) -> None:
+        appointment = Appointment(1, 2, datetime(2026, 11, 2), "Bike tune-up")
+        appointment.createAppointment({})
+
+        result = appointment.updateAppointment(
+            description="Full service",
+            appointmentTime=datetime(2026, 11, 2),
+            customerID=3,
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(
+            result.data,
+            {"description": ("Bike tune-up", "Full service"), "customerID": (2, 3)},
+        )
+        self.assertEqual(appointment.description, "Full service")
+        self.assertEqual(appointment.appointmentTime, datetime(2026, 11, 2))
+
+        self.assertEqual(
+            appointment.updateAppointment(description="Full service").msg,
+            "No changes detected.",
+        )
+        self.assertEqual(appointment.updateAppointment().msg, "No changes detected.")
+
+    def test_appointment_update_is_all_or_nothing(self) -> None:
+        appointment = Appointment(1, 2, datetime(2026, 11, 2), "Bike tune-up")
+        appointment.createAppointment({})
+
+        self.assertEqual(
+            appointment.updateAppointment(description="New", appointmentTime="soon").msg,
+            "Invalid value for: appointmentTime.",
+        )
+        self.assertEqual(
+            appointment.updateAppointment(statusID=6, appointmentID=9).msg,
+            "Cannot update: appointmentID, statusID.",
+        )
+        self.assertEqual(appointment.description, "Bike tune-up")
+        self.assertFalse(appointment.updateAppointment(description=" ").success)
+        self.assertFalse(appointment.updateAppointment(customerID=True).success)
+
+        details = appointment.getDetails().data
+        self.assertEqual(details["appointmentID"], 1)
+        self.assertEqual(details["statusID"], StatusID.APPOINTMENT_BOOKED)
+
+        appointment.cancelAppointment()
+        self.assertEqual(
+            appointment.updateAppointment(description="Late").msg,
+            "Appointment can no longer be changed.",
         )
 
-        result = appointment.reschedule(datetime(2026, 11, 3))
-        self.assertTrue(result.success)
-        self.assertEqual(appointment.appointmentTime, datetime(2026, 11, 3))
-        self.assertFalse(appointment.reschedule("tomorrow").success)
-        self.assertFalse(appointment.updateDescription(" ").success)
+    def test_appointment_create_set_time_slot_and_cancel(self) -> None:
+        appointments: dict[int, Appointment] = {}
+        appointment = Appointment(1, 2, datetime(2026, 11, 2), "Bike tune-up")
+        self.assertIsNone(appointment.statusID)
+
+        self.assertTrue(appointment.createAppointment(appointments).success)
+        self.assertEqual(appointment.statusID, StatusID.APPOINTMENT_BOOKED)
+        self.assertEqual(appointment.statusID, 4)
+        self.assertFalse(appointment.createAppointment(appointments).success)
+        self.assertFalse(
+            Appointment(3, 2, datetime(2026, 11, 2), " ")
+            .createAppointment(appointments)
+            .success
+        )
+
+        self.assertTrue(appointment.setupTimeSlot(datetime(2026, 11, 5)).success)
+        self.assertEqual(appointment.appointmentTime, datetime(2026, 11, 5))
+        self.assertFalse(appointment.setupTimeSlot("soon").success)
+
+        self.assertTrue(appointment.cancelAppointment().success)
+        self.assertEqual(appointment.statusID, StatusID.APPOINTMENT_CANCELLED)
+        self.assertFalse(appointment.cancelAppointment().success)
+        self.assertFalse(appointment.setupTimeSlot(datetime(2026, 11, 6)).success)
 
     def test_response_has_structured_message_level_success_and_data(self) -> None:
         response = Response.ok("Saved.", data=42)
@@ -118,13 +173,15 @@ class ShoppingCartTests(unittest.TestCase):
                 "INSERT INTO customer (customer_id, name) VALUES (1, 'Casey')"
             )
             connection.executemany(
-                "INSERT INTO item "
-                "(item_id, name, description, price, stock_quantity) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO item (item_id, name, description, price) "
+                "VALUES (?, ?, ?, ?)",
                 [
-                    (10, "Tube", "Inner tube", 8.5, 5),
-                    (11, "Tune-up", "Basic service", 30.0, None),
+                    (10, "Tube", "Inner tube", 8.5),
+                    (11, "Tune-up", "Basic service", 30.0),
                 ],
+            )
+            connection.execute(
+                "INSERT INTO inventory (item_id, quantity) VALUES (10, 5)"
             )
             connection.commit()
         self.part = Item(10, "Tube", "Inner tube", 8.5, "Tires", "RoadCo", 5)
@@ -217,26 +274,6 @@ class ShoppingCartTests(unittest.TestCase):
 
         self.assertEqual(self.cart.items[10].quantity, 2)
         self.assertEqual(self.cart_api.loadCart(1).items[10].quantity, 2)
-
-
-class InventoryTests(unittest.TestCase):
-    def test_inventory_api_reexports_domain_models(self) -> None:
-        self.assertIs(Inventory, ModelInventory)
-        self.assertIs(ServiceItem, Item)
-
-    def test_inventory_add_update_and_stock_queries(self) -> None:
-        inventory = Inventory(1)
-        part = Item(10, "Tube", "Inner tube", 8.5, "Tires", "RoadCo", 5)
-
-        self.assertEqual(inventory.addItem(part).msg, "Item added successfully.")
-        self.assertEqual(inventory.addItem(part).msg, "Item already exists.")
-        self.assertEqual(inventory.checkStock(10).data, 5)
-        self.assertEqual(inventory.updateItem(10, 3).msg, "Item updated successfully.")
-        self.assertEqual(inventory.checkStock(10).data, 3)
-        self.assertEqual(inventory.markOutOfStock(10).msg, "Item updated successfully.")
-        self.assertEqual(inventory.checkStock(10).data, 0)
-        self.assertEqual(inventory.updateItem(10, -1).msg, "Invalid item or quantity.")
-        self.assertEqual(inventory.checkStock(99).msg, "Item not found.")
 
 
 if __name__ == "__main__":
