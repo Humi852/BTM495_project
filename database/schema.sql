@@ -1,3 +1,5 @@
+PRAGMA foreign_keys = ON;
+
 -- 1. Admin Table
 CREATE TABLE IF NOT EXISTS admin (
     admin_id INTEGER PRIMARY KEY,
@@ -29,22 +31,27 @@ CREATE TABLE IF NOT EXISTS status (
     category TEXT NOT NULL CHECK (category IN ('event','appointment','order','payment')),
     name TEXT NOT NULL,
     UNIQUE (category, name),
-    UNIQUE (statusID, category)
+    UNIQUE (statusID, category)  -- Ensure statusID is unique within each category
 );
 
+
 INSERT OR IGNORE INTO status (statusID, category, name) VALUES
-    (1, 'payment', 'Paid'),
-    (2, 'payment', 'Pending'),
-    (3, 'payment', 'Failed'),
-    (4, 'order', 'Pending'),
-    (5, 'order', 'Completed'),
-    (6, 'order', 'Cancelled'),
-    (7, 'appointment', 'Booked'),
-    (8, 'appointment', 'Completed'),
-    (9, 'appointment', 'Cancelled'),
-    (10, 'event', 'Scheduled'),
-    (11, 'event', 'Completed'),
-    (12, 'event', 'Cancelled');
+-- Event Statuses
+    (1, 'event', 'Scheduled'),
+    (2, 'event', 'Completed'),
+    (3, 'event', 'Cancelled'),
+-- Appointment Statuses
+    (4, 'appointment', 'Booked'),
+    (5, 'appointment', 'Cancelled'),
+    (6, 'appointment', 'Completed'),
+-- Order Statuses
+    (7, 'order', 'Pending'),
+    (8, 'order', 'Cancelled'),
+    (9, 'order', 'Completed'),
+-- Payment Statuses
+    (10, 'payment', 'pending'),
+    (11, 'payment', 'paid'),
+    (12, 'payment', 'failed');
 
 -- 3. Event Table
 CREATE TABLE IF NOT EXISTS event (
@@ -53,12 +60,20 @@ CREATE TABLE IF NOT EXISTS event (
     name TEXT NOT NULL,
     description TEXT,
     eventDateTime DATETIME,
-    participantLimit INTEGER,
-    participantCount INTEGER,
+    participantLimit INTEGER NOT NULL DEFAULT 0 CHECK (participantLimit >= 0),
     statusID INTEGER,
     category TEXT NOT NULL DEFAULT 'event' CHECK (category = 'event'),
     FOREIGN KEY (admin_id) REFERENCES admin(admin_id),
     FOREIGN KEY (statusID, category) REFERENCES status(statusID, category)
+);
+
+-- Event Registration Table: tracks which customers joined which events.
+CREATE TABLE IF NOT EXISTS event_registration (
+    event_id INTEGER NOT NULL,
+    customer_id INTEGER NOT NULL,
+    PRIMARY KEY (event_id, customer_id),
+    FOREIGN KEY (event_id) REFERENCES event(event_id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE
 );
 
 -- 4. Appointment Table

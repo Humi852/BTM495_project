@@ -2,6 +2,7 @@ class DatabaseTables:
     ADMIN = "admin"
     CUSTOMER = "customer"
     EVENT = "event"
+    EVENT_REGISTRATION = "event_registration"
     APPOINTMENT = "appointment"
     ORDERS = "orders"
     ITEM = "item"
@@ -27,7 +28,6 @@ class DatabaseColumns:
     DESCRIPTION = "description"
     EVENT_DATE_TIME = "eventDateTime"
     PARTICIPANT_LIMIT = "participantLimit"
-    PARTICIPANT_COUNT = "participantCount"
     STATUS_ID = "statusID"
     APPOINTMENT_TIME = "appointmentTime"
     ORDER_DATE_TIME = "orderDateTime"
@@ -47,7 +47,7 @@ class DatabaseColumns:
 
 
 class DatabaseValues:
-    PAYMENT_STATUS_ID_PAID = 1
+    PAYMENT_STATUS_ID_PAID = 11
 
 
 DATABASE_SCHEMA_COLUMNS = {
@@ -74,9 +74,12 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.DESCRIPTION,
         DatabaseColumns.EVENT_DATE_TIME,
         DatabaseColumns.PARTICIPANT_LIMIT,
-        DatabaseColumns.PARTICIPANT_COUNT,
         DatabaseColumns.STATUS_ID,
         DatabaseColumns.CATEGORY,
+    ),
+    DatabaseTables.EVENT_REGISTRATION: (
+        DatabaseColumns.EVENT_ID,
+        DatabaseColumns.CUSTOMER_ID,
     ),
     DatabaseTables.APPOINTMENT: (
         DatabaseColumns.APPOINTMENT_ID,

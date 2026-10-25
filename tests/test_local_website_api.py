@@ -75,6 +75,7 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
                 {"name": "appointment", "rows": 0},
                 {"name": "customer", "rows": 1},
                 {"name": "event", "rows": 0},
+                {"name": "event_registration", "rows": 0},
                 {"name": "item", "rows": 0},
                 {"name": "order_item", "rows": 0},
                 {"name": "orders", "rows": 1},
@@ -221,8 +222,9 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
             connection.execute(
                 "INSERT INTO payment "
                 "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (101, "2025-01-01 12:00:00", 42.5, "Credit Card", 1),
+                "VALUES (?, ?, ?, ?, (SELECT statusID FROM status "
+                "WHERE category = 'payment' AND name = 'paid'))",
+                (101, "2025-01-01 12:00:00", 42.5, "Credit Card"),
             )
             connection.commit()
 

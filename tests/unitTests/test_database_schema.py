@@ -36,6 +36,7 @@ class DatabaseSchemaTests(unittest.TestCase):
                 "admin",
                 "customer",
                 "event",
+                "event_registration",
                 "appointment",
                 "item",
                 "shopping_cart",
@@ -63,6 +64,7 @@ class DatabaseSchemaTests(unittest.TestCase):
             "admin": ["admin_id"],
             "customer": ["customer_id"],
             "event": ["event_id"],
+            "event_registration": ["event_id", "customer_id"],
             "appointment": ["appointment_id"],
             "item": ["item_id"],
             "shopping_cart": ["customer_id"],
@@ -96,6 +98,10 @@ class DatabaseSchemaTests(unittest.TestCase):
         }
         expected_foreign_keys = {
             "event": {("admin_id", "admin", "admin_id")} | status_keys,
+            "event_registration": {
+                ("event_id", "event", "event_id"),
+                ("customer_id", "customer", "customer_id"),
+            },
             "appointment": {("customer_id", "customer", "customer_id")} | status_keys,
             "orders": {("customer_id", "customer", "customer_id")} | status_keys,
             "shopping_cart": {("customer_id", "customer", "customer_id")},
@@ -141,7 +147,11 @@ class DatabaseSchemaTests(unittest.TestCase):
             INSERT INTO payment
                 (payment_id, order_id, paymentDateTime, amount, paymentMethod,
                  statusID)
-                VALUES (7, 6, '2026-11-03', 17.0, 'Cash', 1);
+                VALUES (
+                    7, 6, '2026-11-03', 17.0, 'Cash',
+                    (SELECT statusID FROM status
+                     WHERE category = 'payment' AND name = 'paid')
+                );
             """
         )
 
@@ -254,14 +264,30 @@ class DatabaseSchemaTests(unittest.TestCase):
             INSERT INTO admin (admin_id, name) VALUES (1, 'Morgan Admin');
             INSERT INTO customer (customer_id, name) VALUES (2, 'Casey Customer');
             INSERT INTO event (event_id, admin_id, name, statusID)
-                VALUES (3, 1, 'Community Ride', 10);
+                VALUES (
+                    3, 1, 'Community Ride',
+                    (SELECT statusID FROM status
+                     WHERE category = 'event' AND name = 'Scheduled')
+                );
             INSERT INTO appointment (appointment_id, customer_id, statusID)
-                VALUES (4, 2, 7);
+                VALUES (
+                    4, 2,
+                    (SELECT statusID FROM status
+                     WHERE category = 'appointment' AND name = 'Booked')
+                );
             INSERT INTO orders (order_id, customer_id, statusID)
-                VALUES (6, 2, 4);
+                VALUES (
+                    6, 2,
+                    (SELECT statusID FROM status
+                     WHERE category = 'order' AND name = 'Pending')
+                );
             INSERT INTO payment
                 (order_id, paymentDateTime, amount, paymentMethod, statusID)
-                VALUES (6, '2026-11-03', 17.0, 'Cash', 1);
+                VALUES (
+                    6, '2026-11-03', 17.0, 'Cash',
+                    (SELECT statusID FROM status
+                     WHERE category = 'payment' AND name = 'paid')
+                );
             """
         )
         categories = {
@@ -281,19 +307,54 @@ class DatabaseSchemaTests(unittest.TestCase):
         )
 
         invalid_inserts = (
-            "INSERT INTO event (admin_id, name, statusID) VALUES (1, 'Wrong', 1)",
-            "INSERT INTO appointment (customer_id, statusID) VALUES (2, 10)",
-            "INSERT INTO orders (customer_id, statusID) VALUES (2, 1)",
+            "INSERT INTO event (admin_id, name, statusID) "
+            "VALUES (1, 'Wrong', "
+            "(SELECT statusID FROM status WHERE category = 'payment'))",
+            "INSERT INTO appointment (customer_id, statusID) "
+            "VALUES (2, (SELECT statusID FROM status WHERE category = 'event'))",
+            "INSERT INTO orders (customer_id, statusID) "
+            "VALUES (2, (SELECT statusID FROM status WHERE category = 'event'))",
             "INSERT INTO payment "
             "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
-            "VALUES (6, '2026-11-03', 1.0, 'Cash', 4)",
+            "VALUES (6, '2026-11-03', 1.0, 'Cash', "
+            "(SELECT statusID FROM status WHERE category = 'appointment'))",
             "INSERT INTO orders (customer_id, statusID, category) "
-            "VALUES (2, 1, 'payment')",
+            "VALUES (2, "
+            "(SELECT statusID FROM status WHERE category = 'payment'), "
+            "'payment')",
         )
         for statement in invalid_inserts:
             with self.subTest(statement=statement):
                 with self.assertRaises(sqlite3.IntegrityError):
                     self.connection.execute(statement)
+
+    def test_event_registration_tracks_unique_customer_per_event(self) -> None:
+        self.connection.executescript(
+            """
+            INSERT INTO admin (admin_id, name) VALUES (1, 'Morgan Admin');
+            INSERT INTO customer (customer_id, name) VALUES (2, 'Casey Customer');
+            INSERT INTO event (event_id, admin_id, name) VALUES (3, 1, 'Community Ride');
+            INSERT INTO event_registration (event_id, customer_id) VALUES (3, 2);
+            """
+        )
+        invalid_inserts = (
+            "INSERT INTO event_registration (event_id, customer_id) VALUES (3, 2)",
+            "INSERT INTO event_registration (event_id, customer_id) VALUES (999, 2)",
+            "INSERT INTO event_registration (event_id, customer_id) VALUES (3, 999)",
+            "INSERT INTO event_registration (event_id, customer_id) VALUES (3, NULL)",
+        )
+        for statement in invalid_inserts:
+            with self.subTest(statement=statement):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.connection.execute(statement)
+
+        self.connection.execute("DELETE FROM event WHERE event_id = 3")
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT COUNT(*) FROM event_registration"
+            ).fetchone()[0],
+            0,
+        )
 
     def test_order_item_rejects_nonpositive_quantity_and_negative_price(self) -> None:
         self.connection.executescript(

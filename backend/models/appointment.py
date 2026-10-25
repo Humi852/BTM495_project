@@ -3,7 +3,6 @@ from datetime import datetime
 
 from backend.utils.response import Response
 
-
 @dataclass
 class Appointment:
     appointmentID: int
