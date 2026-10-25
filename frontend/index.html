@@ -63,7 +63,10 @@
             <h2>Orders</h2>
             <p class="muted">Payments use the total stored on an existing order. A sample order is added if needed.</p>
           </div>
-          <button id="make-payment-button" type="button">Make a payment</button>
+          <div class="button-group">
+            <button id="make-payment-button" type="button">Make a payment</button>
+            <button id="delete-all-orders-button" class="button-danger" type="button">Remove all orders</button>
+          </div>
         </div>
         <p id="order-message" class="muted" role="status"></p>
         <div class="table-wrap">
@@ -74,18 +77,24 @@
                 <th scope="col">Date</th>
                 <th scope="col">Total</th>
                 <th scope="col">Status</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody id="order-results">
-              <tr><td colspan="4" class="muted">Loading orders…</td></tr>
+              <tr><td colspan="5" class="muted">Loading orders…</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
       <section class="card">
-        <h2>Payment history</h2>
-        <p class="muted">Sample orders are saved to SQLite; payment attempts and card details are not.</p>
+        <div class="card-heading">
+          <div>
+            <h2>Payment history</h2>
+            <p class="muted">Sample orders are saved to SQLite; payment attempts and card details are not.</p>
+          </div>
+          <button id="delete-all-payments-button" class="button-danger" type="button">Remove all payments</button>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -96,10 +105,11 @@
                 <th scope="col">Amount</th>
                 <th scope="col">Method</th>
                 <th scope="col">Status</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody id="payment-history">
-              <tr><td colspan="6" class="muted">Loading payment history…</td></tr>
+              <tr><td colspan="7" class="muted">Loading payment history…</td></tr>
             </tbody>
           </table>
         </div>
@@ -118,15 +128,15 @@
           <label for="order-id">Order</label>
           <select id="order-id" name="order_id" required></select>
           <label for="card-number">Card number</label>
-          <input id="card-number" name="card_number" type="text" autocomplete="cc-number" placeholder="4242424242424242" required>
+          <input id="card-number" name="card_number" type="text" autocomplete="off" value="4242424242424242" placeholder="4242424242424242" required>
           <div class="form-row">
             <div>
               <label for="expiration-date">Expiration (MM/YY)</label>
-              <input id="expiration-date" name="expiration_date" type="text" autocomplete="cc-exp" placeholder="12/30" required>
+              <input id="expiration-date" name="expiration_date" type="text" autocomplete="off" value="12/30" placeholder="12/30" required>
             </div>
             <div>
               <label for="cvv">Security code</label>
-              <input id="cvv" name="cvv" type="password" autocomplete="cc-csc" placeholder="123" required>
+              <input id="cvv" name="cvv" type="password" autocomplete="off" value="123" placeholder="123" required>
             </div>
           </div>
           <p id="payment-error" class="error" role="alert" hidden></p>

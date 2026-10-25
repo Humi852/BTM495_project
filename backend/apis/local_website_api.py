@@ -16,6 +16,7 @@ from backend.utils.logger import (
     http_status_label,
 )
 from backend.utils.sqlite import (
+    SQLComparison,
     SQLiteQuery,
     SQLiteSession,
     SQLCondition,
@@ -212,6 +213,10 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
                     duration_ms,
                 )
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def log_message(self, format: str, *args: object) -> None:
         return
 
@@ -224,6 +229,98 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
             self._send_dashboard_data()
             return
         super().do_GET()
+
+    def do_DELETE(self) -> None:
+        resource, record_id = self._record_route()
+        if resource is None:
+            self._send_json({"status": "error", "message": "Not found."}, 404)
+            return
+        self._modify_records(resource, record_id, None)
+
+    def do_PATCH(self) -> None:
+        resource, record_id = self._record_route()
+        if resource is None or record_id is None:
+            self._send_json({"status": "error", "message": "Not found."}, 404)
+            return
+        try:
+            payload = read_json_object(
+                self,
+                self.MAX_REQUEST_BYTES,
+                request_name=resource.title(),
+            )
+        except HTTPRequestError as error:
+            self._send_json({"status": "error", "message": str(error)}, error.status_code)
+            return
+        amount = payload.get("amount")
+        if type(amount) not in (int, float) or not 0 < amount < 1_000_000_000:
+            self._send_json(
+                {"status": "error", "message": "Amount must be a positive number."},
+                400,
+            )
+            return
+        self._modify_records(resource, record_id, round(float(amount), 2))
+
+    def _record_route(self) -> tuple[str | None, int | None]:
+        parts = urlsplit(self.path).path.strip("/").split("/")
+        if len(parts) not in (2, 3) or parts[0] != "api" or parts[1] not in (
+            "orders",
+            "payments",
+        ):
+            return None, None
+        if len(parts) == 2:
+            return parts[1], None
+        if not parts[2].isascii() or not parts[2].isdecimal():
+            return None, None
+        return parts[1], int(parts[2])
+
+    def _modify_records(
+        self,
+        resource: str,
+        record_id: int | None,
+        amount: float | None,
+    ) -> None:
+        """Delete (amount is None) or update one record, or delete all when no ID."""
+        is_order = resource == "orders"
+        table = DatabaseTables.ORDERS if is_order else DatabaseTables.PAYMENT
+        id_column = DatabaseColumns.ORDER_ID if is_order else DatabaseColumns.PAYMENT_ID
+        amount_column = (
+            DatabaseColumns.TOTAL_AMOUNT if is_order else DatabaseColumns.AMOUNT
+        )
+        try:
+            with _database().transaction() as session:
+                if record_id is None:
+                    where = (
+                        SQLCondition(
+                            id_column, 0, SQLComparison.GREATER_THAN_OR_EQUAL
+                        ),
+                    )
+                else:
+                    where = (SQLCondition(id_column, record_id),)
+
+                if amount is not None:
+                    result = session.update(
+                        table, {amount_column: amount}, where=where
+                    )
+                else:
+                    if is_order:
+                        session.delete(DatabaseTables.PAYMENT, where=where)
+                        session.delete(DatabaseTables.ORDER_ITEM, where=where)
+                    result = session.delete(table, where=where)
+                changed = record_id is None or result.rowcount == 1
+        except sqlite3.Error:
+            logger.exception("Could not modify %s", resource)
+            self._send_json(
+                {"status": "error", "message": f"Could not modify {resource}."},
+                500,
+            )
+            return
+
+        if not changed:
+            self._send_json(
+                {"status": "error", "message": "Record was not found."}, 404
+            )
+            return
+        self._send_json({"status": "ok"}, 200)
 
     def do_POST(self) -> None:
         request_path = urlsplit(self.path).path
