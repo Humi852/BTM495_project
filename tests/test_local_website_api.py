@@ -1,4 +1,5 @@
 import json
+import logging
 import sqlite3
 import sys
 import threading
@@ -298,6 +299,98 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
         self.assertEqual(sample_user_count, 1)
         self.assertEqual(sample_order_count, 1)
 
+    def _call(self, method: str, path: str, payload: dict | None = None):
+        data = None if payload is None else json.dumps(payload).encode("utf-8")
+        request = Request(
+            self.base_url + path,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method=method,
+        )
+        try:
+            return urlopen(request)
+        except HTTPError as error:
+            return error
+
+    def _add_payment(self, order_id: int = 101) -> None:
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            connection.execute(
+                "INSERT INTO payment "
+                "(order_id, paymentDateTime, amount, paymentMethod, statusID) "
+                "VALUES (?, '2025-01-01 12:00:00', 42.5, 'Credit Card', "
+                "(SELECT statusID FROM status "
+                "WHERE category = 'payment' AND name = 'Paid'))",
+                (order_id,),
+            )
+            connection.commit()
+
+    def _count(self, table: str) -> int:
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            return connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
+    def test_edit_order_and_payment_amounts(self) -> None:
+        self._add_payment()
+        with self._call("PATCH", "/api/orders/101", {"amount": 10.5}) as response:
+            self.assertEqual(response.status, 200)
+        with self._call("PATCH", "/api/payments/1", {"amount": 7}) as response:
+            self.assertEqual(response.status, 200)
+        with urlopen(self.base_url + "/api/dashboard") as response:
+            payload = json.load(response)
+        self.assertEqual(payload["orders"][0]["total_amount"], 10.5)
+        self.assertEqual(payload["payments"][0]["amount"], 7)
+
+    def test_edit_rejects_bad_amount_and_missing_records(self) -> None:
+        for body in ({"amount": 0}, {"amount": "5"}, {"amount": True}, {}):
+            with self._call("PATCH", "/api/orders/101", body) as response:
+                self.assertEqual(response.code, 400)
+        with self._call("PATCH", "/api/orders/999", {"amount": 5}) as response:
+            self.assertEqual(response.code, 404)
+        with self._call("PATCH", "/api/orders", {"amount": 5}) as response:
+            self.assertEqual(response.code, 404)
+        with self._call("PATCH", "/api/orders/101", None) as response:
+            self.assertEqual(response.code, 400)
+
+    def test_delete_single_order_removes_its_payments(self) -> None:
+        self._add_payment()
+        with self._call("DELETE", "/api/orders/101") as response:
+            self.assertEqual(response.status, 200)
+        self.assertEqual(self._count("orders"), 0)
+        self.assertEqual(self._count("payment"), 0)
+        with self._call("DELETE", "/api/orders/101") as response:
+            self.assertEqual(response.code, 404)
+
+    def test_delete_single_payment_keeps_order(self) -> None:
+        self._add_payment()
+        with self._call("DELETE", "/api/payments/1") as response:
+            self.assertEqual(response.status, 200)
+        self.assertEqual(self._count("payment"), 0)
+        self.assertEqual(self._count("orders"), 1)
+
+    def test_remove_all_payments_and_orders(self) -> None:
+        self._add_payment()
+        with self._call("DELETE", "/api/payments") as response:
+            self.assertEqual(response.status, 200)
+        self.assertEqual((self._count("payment"), self._count("orders")), (0, 1))
+        self._add_payment()
+        with self._call("DELETE", "/api/orders") as response:
+            self.assertEqual(response.status, 200)
+        self.assertEqual((self._count("payment"), self._count("orders")), (0, 0))
+
+    def test_unknown_record_routes_are_not_found(self) -> None:
+        for method, path in (
+            ("DELETE", "/api/items/1"),
+            ("DELETE", "/api/orders/abc"),
+            ("DELETE", "/api/orders/1/2"),
+        ):
+            with self._call(method, path) as response:
+                self.assertEqual(response.code, 404)
+
+    def test_card_form_defaults_are_valid_and_prefilled(self) -> None:
+        with urlopen(self.base_url + "/") as response:
+            page = response.read().decode("utf-8")
+        for value in ("4242424242424242", "12/30", "123"):
+            self.assertIn(f'value="{value}"', page)
+
     def _post_payment(self, payload: dict[str, object]):
         request = Request(
             self.base_url + "/api/payments",
@@ -424,6 +517,8 @@ class LocalDryRunWebsiteTests(unittest.TestCase):
     def test_status_reports_missing_database_as_an_error(self) -> None:
         self.database_path.unlink()
 
+        logging.disable(logging.CRITICAL)
+        self.addCleanup(logging.disable, logging.NOTSET)
         with self.assertRaises(HTTPError) as error:
             urlopen(self.api_url)
 

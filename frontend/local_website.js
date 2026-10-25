@@ -59,6 +59,75 @@ function formatAmount(amount) {
   }).format(amount);
 }
 
+const RESOURCES = { order: "orders", payment: "payments" };
+
+function actionCell(kind, id, amount) {
+  const cell = document.createElement("td");
+  cell.className = "row-actions";
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.className = "icon-button button-secondary";
+  edit.textContent = "✎";
+  edit.title = edit.ariaLabel = `Edit ${kind} #${id}`;
+  edit.addEventListener("click", () => editRecord(kind, id, amount));
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "icon-button button-danger";
+  remove.textContent = "🗑";
+  remove.title = remove.ariaLabel = `Delete ${kind} #${id}`;
+  remove.addEventListener("click", () => deleteRecord(kind, id));
+  cell.append(edit, remove);
+  return cell;
+}
+
+async function modifyRecords(method, path, body) {
+  errorMessage.hidden = true;
+  try {
+    const response = await fetch(path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok || result.status !== "ok") {
+      throw new Error(result.message || `Request failed with HTTP ${response.status}`);
+    }
+    await loadDashboard();
+  } catch (error) {
+    errorMessage.textContent = error instanceof Error ? error.message : String(error);
+    errorMessage.hidden = false;
+  }
+}
+
+async function editRecord(kind, id, amount) {
+  const label = kind === "order" ? "total" : "amount";
+  const input = window.prompt(`New ${label} for ${kind} #${id}:`, String(amount));
+  if (input === null) {
+    return;
+  }
+  const value = Number(input);
+  if (input.trim() === "" || !Number.isFinite(value) || value <= 0) {
+    errorMessage.textContent = "Enter a positive number.";
+    errorMessage.hidden = false;
+    return;
+  }
+  await modifyRecords("PATCH", `/api/${RESOURCES[kind]}/${id}`, { amount: value });
+}
+
+async function deleteRecord(kind, id) {
+  const extra = kind === "order" ? " and its payments" : "";
+  if (window.confirm(`Delete ${kind} #${id}${extra}?`)) {
+    await modifyRecords("DELETE", `/api/${RESOURCES[kind]}/${id}`);
+  }
+}
+
+async function deleteAll(kind) {
+  const extra = kind === "order" ? " and all payments" : "";
+  if (window.confirm(`Remove ALL ${RESOURCES[kind]}${extra}?`)) {
+    await modifyRecords("DELETE", `/api/${RESOURCES[kind]}`);
+  }
+}
+
 function renderOrders(orders) {
   currentOrders = orders;
   orderResults.replaceChildren();
@@ -67,7 +136,7 @@ function renderOrders(orders) {
   const unpaidOrders = orders.filter((order) => !order.paid);
   if (unpaidOrders.length === 0) {
     if (orders.length === 0) {
-      appendMessageRow(orderResults, 4, "No orders are available.");
+      appendMessageRow(orderResults, 5, "No orders are available.");
       orderMessage.textContent = "A sample order will be created when you start a payment.";
     } else {
       orderMessage.textContent = "All current orders are paid. A new sample order will be created for testing.";
@@ -102,6 +171,7 @@ function renderOrders(orders) {
       row.append(cell);
     }
     row.lastElementChild.className = order.paid ? "row-ok" : "row-pending";
+    row.append(actionCell("order", order.order_id, order.total_amount));
     orderResults.append(row);
   }
 }
@@ -109,7 +179,7 @@ function renderOrders(orders) {
 function renderPayments(payments) {
   paymentHistory.replaceChildren();
   if (payments.length === 0) {
-    appendMessageRow(paymentHistory, 6, "No payment history yet.");
+    appendMessageRow(paymentHistory, 7, "No payment history yet.");
     return;
   }
 
@@ -129,6 +199,7 @@ function renderPayments(payments) {
       row.append(cell);
     }
     row.lastElementChild.className = payment.paid_status ? "row-ok" : "row-pending";
+    row.append(actionCell("payment", payment.payment_id, payment.amount));
     paymentHistory.append(row);
   }
 }
@@ -158,8 +229,8 @@ async function loadDashboard() {
     errorMessage.hidden = false;
     setStatus("Connection failed", "error");
     appendMessageRow(tableResults, 2, "Database structure unavailable.");
-    appendMessageRow(orderResults, 4, "Orders unavailable.");
-    appendMessageRow(paymentHistory, 6, "Payment history unavailable.");
+    appendMessageRow(orderResults, 5, "Orders unavailable.");
+    appendMessageRow(paymentHistory, 7, "Payment history unavailable.");
     makePaymentButton.disabled = true;
   } finally {
     refreshButton.disabled = false;
@@ -226,9 +297,22 @@ async function startPayment() {
   }
 }
 
+const MOCK_CARD = {
+  card_number: "4242424242424242",
+  expiration_date: "12/30",
+  cvv: "123",
+};
+
+function fillMockCard() {
+  for (const [name, value] of Object.entries(MOCK_CARD)) {
+    paymentForm.elements[name].value = value;
+  }
+}
+
 function openPaymentDialog() {
   paymentError.hidden = true;
   paymentForm.reset();
+  fillMockCard();
   if (typeof paymentDialog.showModal === "function") {
     paymentDialog.showModal();
   } else {
@@ -306,6 +390,8 @@ async function submitPayment(event) {
   }
 }
 
+document.querySelector("#delete-all-orders-button").addEventListener("click", () => deleteAll("order"));
+document.querySelector("#delete-all-payments-button").addEventListener("click", () => deleteAll("payment"));
 refreshButton.addEventListener("click", loadDashboard);
 makePaymentButton.addEventListener("click", startPayment);
 document.querySelector("#close-dialog-button").addEventListener("click", closePaymentDialog);
