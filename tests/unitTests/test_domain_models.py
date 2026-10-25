@@ -119,7 +119,7 @@ class ShoppingCartTests(unittest.TestCase):
             )
             connection.executemany(
                 "INSERT INTO item "
-                "(item_id, name, description, sellingprice, stock_quantity) "
+                "(item_id, name, description, price, stock_quantity) "
                 "VALUES (?, ?, ?, ?, ?)",
                 [
                     (10, "Tube", "Inner tube", 8.5, 5),

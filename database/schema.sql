@@ -60,8 +60,9 @@ CREATE TABLE IF NOT EXISTS item (
     item_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    sellingprice REAL,
-    costprice REAL,
+    price REAL,
+    category TEXT,
+    brand TEXT,
     stock_quantity INTEGER
 );
 

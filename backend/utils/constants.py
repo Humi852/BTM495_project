@@ -31,8 +31,9 @@ class DatabaseColumns:
     APPOINTMENT_TIME = "appointmentTime"
     ORDER_DATE_TIME = "orderDateTime"
     TOTAL_AMOUNT = "totalAmount"
-    SELLING_PRICE = "sellingprice"
-    COST_PRICE = "costprice"
+    PRICE = "price"
+    CATEGORY = "category"
+    BRAND = "brand"
     STOCK_QUANTITY = "stock_quantity"
     ITEMS_JSON = "items_json"
     QUANTITY = "quantity"
@@ -93,8 +94,9 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.ITEM_ID,
         DatabaseColumns.NAME,
         DatabaseColumns.DESCRIPTION,
-        DatabaseColumns.SELLING_PRICE,
-        DatabaseColumns.COST_PRICE,
+        DatabaseColumns.PRICE,
+        DatabaseColumns.CATEGORY,
+        DatabaseColumns.BRAND,
         DatabaseColumns.STOCK_QUANTITY,
     ),
     DatabaseTables.SHOPPING_CART: (

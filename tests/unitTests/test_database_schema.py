@@ -124,8 +124,8 @@ class DatabaseSchemaTests(unittest.TestCase):
                 (appointment_id, customer_id, appointmentTime, description)
                 VALUES (4, 2, '2026-11-02', 'Bike tune-up');
             INSERT INTO item
-                (item_id, name, description, sellingprice, costprice, stock_quantity)
-                VALUES (5, 'Road Tube', '700c inner tube', 8.5, 4.0, 10);
+                (item_id, name, description, price, category, brand, stock_quantity)
+                VALUES (5, 'Road Tube', '700c inner tube', 8.5, 'Parts', 'Generic', 10);
             INSERT INTO shopping_cart (customer_id, items_json)
                 VALUES (2, '[{"item_id":5,"quantity":2,"price":8.5}]');
             INSERT INTO orders (order_id, customer_id, orderDateTime, totalAmount)

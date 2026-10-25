@@ -27,8 +27,8 @@ class OrderServiceTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.execute(
                 "INSERT INTO item "
-                "(item_id, name, description, sellingprice, costprice, stock_quantity) "
-                "VALUES (10, 'Tube', 'Road tube', 9.5, 4.0, 5)"
+                "(item_id, name, description, price, category, brand, stock_quantity) "
+                "VALUES (10, 'Tube', 'Road tube', 9.5, 'Parts', 'Generic', 5)"
             )
             connection.commit()
 
