@@ -115,6 +115,89 @@
         </div>
       </section>
 
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <h2>Inventory</h2>
+            <p class="muted">Stock lives in the inventory table; every quantity change is written to its history. Saving an existing item ID updates only what changed. Leave stock empty for an untracked item.</p>
+          </div>
+        </div>
+        <form id="item-form" class="inline-form">
+          <div><label for="item-id">Item ID</label><input id="item-id" type="number" min="1" value="1" required></div>
+          <div><label for="item-name">Name</label><input id="item-name" type="text" value="Road Tube" required></div>
+          <div><label for="item-price">Price</label><input id="item-price" type="number" min="0" step="0.01" value="8.50" required></div>
+          <div><label for="item-stock">Stock</label><input id="item-stock" type="number" min="0" step="1" value="10"></div>
+          <div><label for="item-admin">Admin ID (optional)</label><input id="item-admin" type="number" min="1"></div>
+          <div><label for="item-reason">Reason (optional)</label><input id="item-reason" type="text" placeholder="Cycle count"></div>
+          <button id="save-item-button" type="submit">Save item</button>
+        </form>
+        <p id="inventory-message" class="muted" role="status"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Name</th>
+                <th scope="col">Price</th>
+                <th scope="col">Stock</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-results">
+              <tr><td colspan="5" class="muted">Loading inventory…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 id="history-title">Stock history</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">When</th>
+                <th scope="col">Old</th>
+                <th scope="col">New</th>
+                <th scope="col">Admin</th>
+                <th scope="col">Reason</th>
+              </tr>
+            </thead>
+            <tbody id="history-results">
+              <tr><td colspan="5" class="muted">Choose the history icon on an item.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <h2>Event registration</h2>
+            <p class="muted">Registrations are rows in the event_registration table. Create a sample event, then register customers until it is full.</p>
+          </div>
+          <button id="add-event-button" type="button">Add sample event (limit 2)</button>
+        </div>
+        <form id="registration-form" class="inline-form">
+          <div><label for="registration-event">Event</label><select id="registration-event" required></select></div>
+          <div><label for="registration-customer">Customer ID</label><input id="registration-customer" type="number" min="1" required></div>
+          <button id="register-button" type="submit">Register</button>
+        </form>
+        <p id="registration-message" class="muted" role="status"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Event</th>
+                <th scope="col">Registered / limit</th>
+                <th scope="col">Customers</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="event-results">
+              <tr><td colspan="4" class="muted">Loading events…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <dialog id="payment-dialog" aria-labelledby="payment-title">
         <form id="payment-form">
           <div class="dialog-heading">

@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
+from backend.apis.inventory_list_api import InventoryList
 from backend.models.cart_item import CartItem
 from backend.models.item import Item
 from backend.models.shopping_cart import ShoppingCart
@@ -213,13 +214,13 @@ class ShoppingCartAPI:
                     DatabaseColumns.DESCRIPTION,
                     DatabaseColumns.CATEGORY,
                     DatabaseColumns.BRAND,
-                    DatabaseColumns.STOCK_QUANTITY,
                 ),
                 where=(SQLCondition(DatabaseColumns.ITEM_ID, item_id),),
             )
             if row is None:
                 raise ValueError(f"Item {item_id} in the cart does not exist.")
-            name, description, category, brand, stock = row
+            name, description, category, brand = row
+            stock = InventoryList.stockOf(database, item_id)
             item = Item(
                 item_id,
                 name,

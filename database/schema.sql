@@ -108,9 +108,32 @@ CREATE TABLE IF NOT EXISTS item (
     description TEXT,
     price REAL,
     category TEXT,
-    brand TEXT,
-    stock_quantity INTEGER
+    brand TEXT
 );
+
+-- Current stock per item. An item without a row here is not stock-tracked (e.g. a service).
+CREATE TABLE IF NOT EXISTS inventory (
+    item_id INTEGER PRIMARY KEY,
+    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    admin_id INTEGER,  -- last admin to change it; NULL for system changes such as checkout
+    FOREIGN KEY (item_id) REFERENCES item(item_id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_id) REFERENCES admin(admin_id) ON DELETE SET NULL
+);
+
+-- Append-only audit trail: one row per quantity change.
+CREATE TABLE IF NOT EXISTS inventory_history (
+    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,
+    old_quantity INTEGER,  -- NULL when tracking starts
+    new_quantity INTEGER,  -- NULL when tracking stops
+    admin_id INTEGER,      -- NULL for system changes such as checkout
+    reason TEXT,
+    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (item_id) REFERENCES item(item_id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_id) REFERENCES admin(admin_id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_history_item ON inventory_history(item_id, created_at);
 
 -- Persist each customer's active cart as a JSON array of item IDs and quantities.
 CREATE TABLE IF NOT EXISTS shopping_cart (

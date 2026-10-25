@@ -1,3 +1,6 @@
+from enum import IntEnum
+
+
 class DatabaseTables:
     ADMIN = "admin"
     CUSTOMER = "customer"
@@ -6,6 +9,8 @@ class DatabaseTables:
     APPOINTMENT = "appointment"
     ORDERS = "orders"
     ITEM = "item"
+    INVENTORY = "inventory"
+    INVENTORY_HISTORY = "inventory_history"
     SHOPPING_CART = "shopping_cart"
     ORDER_ITEM = "order_item"
     PAYMENT = "payment"
@@ -36,7 +41,12 @@ class DatabaseColumns:
     PRICE = "price"
     CATEGORY = "category"
     BRAND = "brand"
-    STOCK_QUANTITY = "stock_quantity"
+    HISTORY_ID = "history_id"
+    LEGACY_STOCK_QUANTITY = "stock_quantity"  # pre-inventory item column, migration only
+    OLD_QUANTITY = "old_quantity"
+    NEW_QUANTITY = "new_quantity"
+    REASON = "reason"
+    CREATED_AT = "created_at"
     ITEMS_JSON = "items_json"
     QUANTITY = "quantity"
     UNIT_PRICE = "unit_price"
@@ -47,9 +57,25 @@ class DatabaseColumns:
     UPDATED_AT = "updated_at"
 
 
+class StatusID(IntEnum):
+    # One generic type mirroring every row of the schema's status table;
+    # the member name is <category>_<status name>.
+    EVENT_SCHEDULED = 1
+    EVENT_COMPLETED = 2
+    EVENT_CANCELLED = 3
+    APPOINTMENT_BOOKED = 4
+    APPOINTMENT_CANCELLED = 5
+    APPOINTMENT_COMPLETED = 6
+    ORDER_PENDING = 7
+    ORDER_CANCELLED = 8
+    ORDER_COMPLETED = 9
+    PAYMENT_PENDING = 10
+    PAYMENT_PAID = 11
+    PAYMENT_FAILED = 12
+
 class DatabaseValues:
-    ORDER_STATUS_ID_PENDING = 7
-    PAYMENT_STATUS_ID_PAID = 11
+    ORDER_STATUS_ID_PENDING = StatusID.ORDER_PENDING
+    PAYMENT_STATUS_ID_PAID = StatusID.PAYMENT_PAID
 
 
 DATABASE_SCHEMA_COLUMNS = {
@@ -107,7 +133,21 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.PRICE,
         DatabaseColumns.CATEGORY,
         DatabaseColumns.BRAND,
-        DatabaseColumns.STOCK_QUANTITY,
+    ),
+    DatabaseTables.INVENTORY: (
+        DatabaseColumns.ITEM_ID,
+        DatabaseColumns.QUANTITY,
+        DatabaseColumns.UPDATED_AT,
+        DatabaseColumns.ADMIN_ID,
+    ),
+    DatabaseTables.INVENTORY_HISTORY: (
+        DatabaseColumns.HISTORY_ID,
+        DatabaseColumns.ITEM_ID,
+        DatabaseColumns.OLD_QUANTITY,
+        DatabaseColumns.NEW_QUANTITY,
+        DatabaseColumns.ADMIN_ID,
+        DatabaseColumns.REASON,
+        DatabaseColumns.CREATED_AT,
     ),
     DatabaseTables.SHOPPING_CART: (
         DatabaseColumns.CUSTOMER_ID,

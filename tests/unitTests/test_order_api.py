@@ -27,8 +27,11 @@ class OrderServiceTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.execute(
                 "INSERT INTO item "
-                "(item_id, name, description, price, category, brand, stock_quantity) "
-                "VALUES (10, 'Tube', 'Road tube', 9.5, 'Parts', 'Generic', 5)"
+                "(item_id, name, description, price, category, brand) "
+                "VALUES (10, 'Tube', 'Road tube', 9.5, 'Parts', 'Generic')"
+            )
+            connection.execute(
+                "INSERT INTO inventory (item_id, quantity) VALUES (10, 5)"
             )
             connection.commit()
 
@@ -74,9 +77,16 @@ class OrderServiceTests(unittest.TestCase):
             )
             self.assertEqual(
                 connection.execute(
-                    "SELECT stock_quantity FROM item WHERE item_id = 10"
+                    "SELECT quantity FROM inventory WHERE item_id = 10"
                 ).fetchone(),
                 (3,),
+            )
+            self.assertEqual(
+                connection.execute(
+                    "SELECT old_quantity, new_quantity, admin_id, reason "
+                    "FROM inventory_history WHERE item_id = 10"
+                ).fetchall(),
+                [(5, 3, None, "Checkout order 1")],
             )
             self.assertEqual(
                 connection.execute(
@@ -108,7 +118,7 @@ class OrderServiceTests(unittest.TestCase):
     def test_insufficient_database_stock_leaves_cart_and_data_unchanged(self) -> None:
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.execute(
-                "UPDATE item SET stock_quantity = 1 WHERE item_id = 10"
+                "UPDATE inventory SET quantity = 1 WHERE item_id = 10"
             )
             connection.commit()
 
@@ -129,7 +139,7 @@ class OrderServiceTests(unittest.TestCase):
             )
             self.assertEqual(
                 connection.execute(
-                    "SELECT stock_quantity FROM item WHERE item_id = 10"
+                    "SELECT quantity FROM inventory WHERE item_id = 10"
                 ).fetchone(),
                 (1,),
             )
@@ -167,7 +177,7 @@ class OrderServiceTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.execute(
                 "CREATE TRIGGER ignore_stock_updates "
-                "BEFORE UPDATE OF stock_quantity ON item "
+                "BEFORE UPDATE OF quantity ON inventory "
                 "BEGIN SELECT RAISE(IGNORE); END"
             )
             connection.commit()
@@ -189,7 +199,7 @@ class OrderServiceTests(unittest.TestCase):
             )
             self.assertEqual(
                 connection.execute(
-                    "SELECT stock_quantity FROM item WHERE item_id = 10"
+                    "SELECT quantity FROM inventory WHERE item_id = 10"
                 ).fetchone(),
                 (5,),
             )

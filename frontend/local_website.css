@@ -228,7 +228,8 @@ dialog::backdrop {
 }
 
 #login-form label,
-#payment-form label {
+#payment-form label,
+.inline-form label {
   display: block;
   margin: 18px 0 6px;
   font-size: 14px;
@@ -237,7 +238,9 @@ dialog::backdrop {
 
 #login-form input,
 #payment-form input,
-#payment-form select {
+#payment-form select,
+.inline-form input,
+.inline-form select {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -248,9 +251,26 @@ dialog::backdrop {
   font: inherit;
 }
 
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.inline-form > div {
+  flex: 1 1 140px;
+}
+
+.inline-form button {
+  margin-bottom: 0;
+}
+
 #login-form input:focus,
 #payment-form input:focus,
-#payment-form select:focus {
+#payment-form select:focus,
+.inline-form input:focus,
+.inline-form select:focus {
   outline: 3px solid #97baff;
   outline-offset: 1px;
 }
