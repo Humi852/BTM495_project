@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS orders (
     customer_id INTEGER,
     orderDateTime DATETIME,
     totalAmount REAL,
+    statusID INTEGER,
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
 );
 

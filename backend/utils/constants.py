@@ -88,6 +88,7 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.CUSTOMER_ID,
         DatabaseColumns.ORDER_DATE_TIME,
         DatabaseColumns.TOTAL_AMOUNT,
+        DatabaseColumns.STATUS_ID,
     ),
     DatabaseTables.ITEM: (
         DatabaseColumns.ITEM_ID,
