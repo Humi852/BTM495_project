@@ -93,6 +93,6 @@ CREATE TABLE IF NOT EXISTS payment (
     paymentDateTime DATETIME NOT NULL,
     amount REAL NOT NULL CHECK (amount > 0),
     paymentMethod TEXT NOT NULL,
-    paidstatus INTEGER NOT NULL CHECK (paidstatus IN (0, 1)),
+    statusID INTEGER NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders(order_id)
 );

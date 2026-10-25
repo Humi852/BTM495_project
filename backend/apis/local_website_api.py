@@ -99,8 +99,8 @@ def get_dashboard_data() -> dict[str, object]:
                 (DatabaseColumns.ORDER_ID,),
                 where=(
                     SQLCondition(
-                        DatabaseColumns.PAID_STATUS,
-                        DatabaseValues.PAID_STATUS_PAID,
+                        DatabaseColumns.PAYMENT_STATUS_ID,
+                        DatabaseValues.PAYMENT_STATUS_ID_PAID,
                     ),
                 ),
             )
@@ -151,7 +151,7 @@ def get_dashboard_data() -> dict[str, object]:
                     DatabaseColumns.PAYMENT_DATE_TIME,
                     DatabaseColumns.AMOUNT,
                     DatabaseColumns.PAYMENT_METHOD,
-                    DatabaseColumns.PAID_STATUS,
+                    DatabaseColumns.PAYMENT_STATUS_ID,
                 ),
                 order_by=(
                     SQLOrder(
@@ -410,8 +410,8 @@ class LocalTestRequestHandler(SimpleHTTPRequestHandler):
                         (DatabaseColumns.ORDER_ID,),
                         where=(
                             SQLCondition(
-                                DatabaseColumns.PAID_STATUS,
-                                DatabaseValues.PAID_STATUS_PAID,
+                                DatabaseColumns.PAYMENT_STATUS_ID,
+                                DatabaseValues.PAYMENT_STATUS_ID_PAID,
                             ),
                         ),
                     )

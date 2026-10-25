@@ -40,13 +40,13 @@ class DatabaseColumns:
     UNIT_PRICE = "unit_price"
     PAYMENT_DATE_TIME = "paymentDateTime"
     PAYMENT_METHOD = "paymentMethod"
-    PAID_STATUS = "paidstatus"
+    PAYMENT_STATUS_ID = "statusID"
     AMOUNT = "amount"
     UPDATED_AT = "updated_at"
 
 
 class DatabaseValues:
-    PAID_STATUS_PAID = 1
+    PAYMENT_STATUS_ID_PAID = 1
 
 
 DATABASE_SCHEMA_COLUMNS = {
@@ -116,6 +116,6 @@ DATABASE_SCHEMA_COLUMNS = {
         DatabaseColumns.PAYMENT_DATE_TIME,
         DatabaseColumns.AMOUNT,
         DatabaseColumns.PAYMENT_METHOD,
-        DatabaseColumns.PAID_STATUS,
+        DatabaseColumns.PAYMENT_STATUS_ID,
     ),
 }
